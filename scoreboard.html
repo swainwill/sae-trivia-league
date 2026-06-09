@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SAE Trivia League Scoreboard</title>
+    <style>
+        :root { 
+            --bg: #1a0633; --card: #2d0a54; --accent: #ffcc00; --text: #ffffff; 
+            --success: #00c853; --danger: #ff1744; --timer-bg: #3d126e; --discord: #5865F2;
+        }
+        
+        body { 
+            background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; 
+            display: flex; flex-direction: column; align-items: center; 
+            min-height: 100vh; margin: 0; padding: 20px;
+        }
+
+        h1 { color: var(--accent); text-transform: uppercase; letter-spacing: 3px; margin: 20px 0; font-size: 2.2rem; }
+
+        .timer-container { display: flex; gap: 20px; margin-bottom: 30px; width: 100%; max-width: 930px; }
+        .timer-box { 
+            flex: 1; background: var(--card); border: 2px solid var(--accent); border-radius: 12px; 
+            padding: 15px; text-align: center; position: relative; overflow: hidden;
+        }
+        .timer-label { color: var(--accent); font-weight: bold; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 5px; }
+        .timer-display { font-size: 2.5rem; font-weight: 800; margin: 10px 0; }
+        .progress-bar { 
+            position: absolute; bottom: 0; left: 0; height: 6px; background: var(--accent); 
+            width: 100%; transition: width 1s linear, background 0.3s;
+        }
+        .low-time { background: var(--danger) !important; box-shadow: 0 0 10px var(--danger); }
+
+        .scoreboard-container { display: flex; justify-content: center; gap: 30px; width: 100%; max-width: 1150px; }
+        .team-card { 
+            background: var(--card); border: 2px solid var(--accent); border-radius: 16px; 
+            padding: 25px; width: 500px; text-align: center; box-shadow: 0 0 20px rgba(255, 204, 0, 0.1);
+        }
+        
+        .name-input { background: #1a0633; border: 1px solid var(--accent); color: white; padding: 8px; border-radius: 8px; width: 90%; margin-bottom: 10px; }
+        .team-name { font-size: 1.6rem; margin: 5px 0; color: var(--accent); font-weight: 800; }
+        .score-display { font-size: 70px; font-weight: 900; margin: 10px 0; }
+
+        .btn-group { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+        button { cursor: pointer; border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; transition: 0.2s; font-family: inherit; }
+        .btn-score { background: var(--accent); color: #1a0633; }
+        .btn-timer { background: var(--accent); color: #1a0633; width: 80px; font-size: 0.8rem; }
+        .btn-export { background: #ffcc00; color: #1a0633; margin-top: 40px; padding: 12px 24px; }
+        .reset-game { margin-top: 40px; background: transparent; border: 1px solid #999; color: #999; padding: 12px 24px; margin-left: 10px; }
+
+        /* Power-Up Styles */
+        .power-ups { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; border-top: 1px solid rgba(255,204,0,0.2); padding-top: 15px; flex-wrap: wrap; }
+        .power-up { background: transparent; border: 1px solid var(--accent); color: var(--accent); font-size: 0.75rem; border-radius: 20px; padding: 6px 12px; transition: all 0.2s; }
+        .power-up.used { background: rgba(255,204,0,0.15); border-color: var(--accent); color: var(--accent); text-decoration: line-through; opacity: 0.45; }
+        .power-up.used::after { content: ' ↩'; font-size: 0.7rem; }
+
+        .player-area { background: rgba(0, 0, 0, 0.3); border-radius: 12px; padding: 15px; text-align: left; }
+        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,204,0,0.1); }
+        .player-info { flex-grow: 1; }
+        .player-btns { display: flex; gap: 4px; }
+        .small-btn { padding: 4px 8px; font-size: 0.75rem; min-width: 40px; }
+
+        .footer-instructions { margin-top: 50px; padding: 20px; border-top: 1px dashed var(--accent); text-align: center; color: var(--accent); font-weight: 500; }
+        .cord-tag { background: var(--discord); color: white; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <h1>SAE Trivia League Scoreboard</h1>
+
+    <div class="timer-container">
+        <div class="timer-box" id="timer-answer">
+            <div class="timer-label">Answer Timer</div>
+            <div class="timer-display" id="disp-answer">60</div>
+            <button class="btn-timer" onclick="toggleTimer('answer', 60)">Start</button>
+            <button class="btn-timer" onclick="resetTimer('answer', 60)">Reset</button>
+            <div class="progress-bar" id="bar-answer"></div>
+        </div>
+        <div class="timer-box" id="timer-steal">
+            <div class="timer-label">Steal Timer</div>
+            <div class="timer-display" id="disp-steal">30</div>
+            <button class="btn-timer" onclick="toggleTimer('steal', 30)">Start</button>
+            <button class="btn-timer" onclick="resetTimer('steal', 30)">Reset</button>
+            <div class="progress-bar" id="bar-steal"></div>
+        </div>
+    </div>
+
+    <div class="scoreboard-container">
+        <div class="team-card">
+            <input type="text" class="name-input" placeholder="Team 1 Name" oninput="updateName(1, this.value)">
+            <div class="team-name" id="t1-name">TEAM 1</div>
+            <div class="score-display" id="t1-score">0</div>
+            <div class="btn-group">
+                <button class="btn-score" onclick="changeTeamScore(1, 1)">+1 Pt</button>
+                <button style="background:transparent; border:1px solid #ff1744; color:#ff1744" onclick="changeTeamScore(1, -1)">-1</button>
+            </div>
+
+            <div class="power-ups">
+                <button class="power-up" onclick="toggleLifeline(this)">Double Dip</button>
+                <button class="power-up" onclick="toggleLifeline(this)">Phone a Friend</button>
+                <button class="power-up" onclick="toggleLifeline(this)">Bonus</button>
+            </div>
+
+            <div class="player-area">
+                <div style="display:flex; gap:5px; margin-bottom:15px;">
+                    <input type="text" id="t1-player-input" class="name-input" style="margin:0" placeholder="Player Name">
+                    <button class="btn-score" onclick="addNewPlayer(1)">Add</button>
+                </div>
+                <div id="t1-player-list"></div>
+            </div>
+        </div>
+
+        <div class="team-card">
+            <input type="text" class="name-input" placeholder="Team 2 Name" oninput="updateName(2, this.value)">
+            <div class="team-name" id="t2-name">TEAM 2</div>
+            <div class="score-display" id="t2-score">0</div>
+            <div class="btn-group">
+                <button class="btn-score" onclick="changeTeamScore(2, 1)">+1 Pt</button>
+                <button style="background:transparent; border:1px solid #ff1744; color:#ff1744" onclick="changeTeamScore(2, -1)">-1</button>
+            </div>
+
+            <div class="power-ups">
+                <button class="power-up" onclick="toggleLifeline(this)">Double Dip</button>
+                <button class="power-up" onclick="toggleLifeline(this)">Phone a Friend</button>
+                <button class="power-up" onclick="toggleLifeline(this)">Bonus</button>
+            </div>
+
+            <div class="player-area">
+                <div style="display:flex; gap:5px; margin-bottom:15px;">
+                    <input type="text" id="t2-player-input" class="name-input" style="margin:0" placeholder="Player Name">
+                    <button class="btn-score" onclick="addNewPlayer(2)">Add</button>
+                </div>
+                <div id="t2-player-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <button class="btn-export" onclick="exportToCSV()">Export Results (CSV)</button>
+        <button class="reset-game" onclick="confirmReset()">Reset Game</button>
+    </div>
+
+    <div class="footer-instructions">
+        📢 When game goes final, put final score and results csv into <span class="cord-tag" onclick="copyCord()">#score-updates</span> on cord.
+    </div>
+
+    <script>
+        const state = {
+            team1: { name: "Team 1", score: 0, players: [] },
+            team2: { name: "Team 2", score: 0, players: [] },
+            timers: { answer: { val: 60, interval: null }, steal: { val: 30, interval: null } }
+        };
+
+        function formatScore(num) { return Number.isInteger(num) ? num : parseFloat(num.toFixed(2)); }
+        
+        function updateName(id, val) { 
+            state[`team${id}`].name = val.toUpperCase() || `TEAM ${id}`;
+            document.getElementById(`t${id}-name`).innerText = state[`team${id}`].name;
+        }
+
+        function changeTeamScore(teamNum, points) { 
+            state[`team${teamNum}`].score += points; 
+            render(teamNum); 
+        }
+
+        function addNewPlayer(teamNum) {
+            const input = document.getElementById(`t${teamNum}-player-input`);
+            if (!input.value.trim()) return;
+            state[`team${teamNum}`].players.push({ name: input.value, score: 0, history: [] });
+            input.value = '';
+            render(teamNum);
+        }
+
+        function changePlayerScore(tNum, pIdx, pts) {
+            const player = state[`team${tNum}`].players[pIdx];
+            player.history.push(pts);
+            player.score += pts;
+            state[`team${tNum}`].score += pts;
+            render(tNum);
+        }
+
+        function undoPlayerScore(tNum, pIdx) {
+            const player = state[`team${tNum}`].players[pIdx];
+            if (!player.history.length) return;
+            const last = player.history.pop();
+            player.score -= last;
+            state[`team${tNum}`].score -= last;
+            render(tNum);
+        }
+
+        function toggleLifeline(btn) {
+            if (btn.classList.contains('used')) {
+                btn.classList.remove('used');
+            } else {
+                btn.classList.add('used');
+            }
+        }
+
+        function toggleTimer(type, max) {
+            const t = state.timers[type];
+            const btn = event.target;
+            if (t.interval) { clearInterval(t.interval); t.interval = null; btn.innerText = "Start"; }
+            else {
+                btn.innerText = "Pause";
+                t.interval = setInterval(() => {
+                    t.val--;
+                    document.getElementById(`disp-${type}`).innerText = t.val;
+                    const pct = (t.val / max) * 100;
+                    const bar = document.getElementById(`bar-${type}`);
+                    bar.style.width = pct + "%";
+                    if (t.val <= 5) bar.classList.add('low-time');
+                    if (t.val <= 0) { clearInterval(t.interval); t.interval = null; btn.innerText = "Start"; alert(type.toUpperCase() + " TIME IS UP!"); }
+                }, 1000);
+            }
+        }
+
+        function resetTimer(type, max) {
+            const t = state.timers[type]; clearInterval(t.interval); t.interval = null; t.val = max;
+            document.getElementById(`disp-${type}`).innerText = max;
+            document.getElementById(`bar-${type}`).style.width = "100%";
+            document.getElementById(`bar-${type}`).classList.remove('low-time');
+            const box = document.getElementById(`timer-${type}`); 
+            box.querySelector('.btn-timer').innerText = "Start";
+        }
+
+        function render(teamNum) {
+            const team = state[`team${teamNum}`];
+            document.getElementById(`t${teamNum}-score`).innerText = formatScore(team.score);
+            const list = document.getElementById(`t${teamNum}-player-list`);
+            list.innerHTML = team.players.map((p, i) => `
+                <div class="player-row">
+                    <div class="player-info">${p.name} <strong>(${formatScore(p.score)})</strong></div>
+                    <div class="player-btns">
+                        <button class="btn-score small-btn" onclick="changePlayerScore(${teamNum}, ${i}, 1)">+1</button>
+                        <button class="btn-score small-btn" onclick="changePlayerScore(${teamNum}, ${i}, 0.5)">.5</button>
+                        <button class="btn-score small-btn" onclick="changePlayerScore(${teamNum}, ${i}, 1/3)">1/3</button>
+                        <button class="small-btn" style="background:transparent; border:1px solid #ff1744; color:#ff1744; ${p.history && p.history.length ? '' : 'opacity:0.3; cursor:not-allowed;'}" onclick="undoPlayerScore(${teamNum}, ${i})" ${p.history && p.history.length ? '' : 'disabled'}>↩</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportToCSV() {
+            let csvContent = "Team,Total,Player,Score\n";
+            [1, 2].forEach(num => {
+                const t = state[`team${num}`];
+                csvContent += `"${t.name}",${formatScore(t.score)},--,--\n`;
+                t.players.forEach(p => csvContent += `"${t.name}",,"${p.name}",${formatScore(p.score)}\n`);
+            });
+            const t1name = state.team1.name.replace(/\s+/g, '_');
+            const t2name = state.team2.name.replace(/\s+/g, '_');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${t1name}_vs_${t2name}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function copyCord() { navigator.clipboard.writeText("#score-updates"); alert("Channel name copied!"); }
+        function confirmReset() {
+            if (confirm("Clear everything and start a new game?")) {
+                state.team1 = { name: "TEAM 1", score: 0, players: [] };
+                state.team2 = { name: "TEAM 2", score: 0, players: [] };
+                document.querySelectorAll('.name-input').forEach(i => i.value = '');
+                document.getElementById('t1-name').innerText = 'TEAM 1';
+                document.getElementById('t2-name').innerText = 'TEAM 2';
+                document.getElementById('t1-score').innerText = '0';
+                document.getElementById('t2-score').innerText = '0';
+                document.getElementById('t1-player-list').innerHTML = '';
+                document.getElementById('t2-player-list').innerHTML = '';
+                document.querySelectorAll('.power-up').forEach(b => { b.classList.remove('used'); b.disabled = false; });
+                resetTimer('answer', 60);
+                resetTimer('steal', 30);
+            }
+        }
+    </script>
+</body>
+</html>
