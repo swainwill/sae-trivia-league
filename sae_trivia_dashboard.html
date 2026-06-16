@@ -158,6 +158,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
   <h1>⚡ SAE Trivia League</h1>
   <div class="topbar-right">
     <div class="week-badge" id="week-count-badge">0 games loaded</div>
+    <button onclick="if(confirm('Clear all game data?')) clearStorage()" style="background:transparent;border:1px solid rgba(255,68,68,0.4);color:rgba(255,68,68,0.7);border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Clear All</button>
   </div>
 </div>
 
@@ -286,6 +287,42 @@ const weekFingerprints = SCHEDULE.map(() => new Set());
 
 let activeWeekIdx = 0;
 let chartInstances = {};
+
+const STORAGE_KEY = 'sae_trivia_v1';
+
+function saveToStorage() {
+  try {
+    // Store raw CSV texts per week so we can re-parse on load
+    const raw = weekFingerprints.map(fp => [...fp]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+  } catch(e) { console.warn('localStorage save failed', e); }
+}
+
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    const raw = JSON.parse(saved);
+    raw.forEach((fpArr, wi) => {
+      fpArr.forEach(text => {
+        if (weekFingerprints[wi].has(text)) return;
+        const game = parseCSV(text);
+        if (game) { weekFingerprints[wi].add(text); weekData[wi].push(game); }
+      });
+    });
+  } catch(e) { console.warn('localStorage load failed', e); }
+}
+
+function clearStorage() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  weekData.forEach(arr => arr.length = 0);
+  weekFingerprints.forEach(fp => fp.clear());
+  initWeekUI();
+  bindWeekUploads();
+  renderAll();
+  document.getElementById('week-count-badge').textContent = '0 games loaded';
+  showToast('All data cleared');
+}
 
 function initWeekUI() {
   const bar = document.getElementById('week-tabs-bar');
@@ -472,6 +509,7 @@ function handleWeekUpload(e) {
   Promise.all(readers).then(() => {
     refreshWeekPanel(weekIdx);
     renderAll();
+    saveToStorage();
     showToast(`${loaded} game${loaded!==1?'s':''} added to ${SCHEDULE[weekIdx].label}${skipped ? ` (${skipped} duplicate${skipped>1?'s':''} skipped)` : ''}`);
   });
   e.target.value = '';
@@ -676,8 +714,10 @@ function showToast(msg) {
 }
 
 // Init
+loadFromStorage();
 initWeekUI();
 bindWeekUploads();
+if (getAllGames().length) renderAll();
 </script>
 </body>
 </html>
