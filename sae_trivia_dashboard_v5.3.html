@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAE Trivia League — Dashboard</title>
+<!-- v5.1 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #1a0633;
+  --card: #2d0a54;
+  --card2: #3d126e;
+  --accent: #ffcc00;
+  --text: #ffffff;
+  --muted: rgba(255,255,255,0.58);
+  --faint: rgba(255,255,255,0.18);
+  --border: rgba(255,204,0,0.25);
+  --line: rgba(255,204,0,0.08);
+  --win: #00c853;
+  --lose: #ff4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; min-height: 100vh; padding: 0 0 60px; }
+button { font-family: inherit; }
+
+.topbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
+.topbar-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.topbar h1 { color: var(--accent); font-size: 1.2rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+.season-chip { background: var(--card2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 0.78rem; font-weight: 700; }
+.season-chip .live { color: var(--win); }
+.season-chip .arch { color: var(--muted); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.week-badge { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; color: var(--accent); font-weight: 700; }
+.btn { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; color: var(--accent); font-size: 0.78rem; font-weight: 700; padding: 7px 14px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn:hover { background: var(--accent); color: var(--bg); }
+.btn.ghost { background: transparent; color: var(--muted); border-color: var(--faint); }
+.btn.ghost:hover { color: var(--text); border-color: var(--text); background: transparent; }
+.btn.danger { background: transparent; color: rgba(255,68,68,0.85); border-color: rgba(255,68,68,0.4); }
+.btn.danger:hover { background: rgba(255,68,68,0.15); color: var(--lose); }
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+.main { max-width: 1280px; margin: 0 auto; padding: 28px 24px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.tab { background: none; border: none; color: var(--muted); font-size: 0.9rem; font-weight: 600; padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.section-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.note { font-size: 0.8rem; color: var(--muted); background: rgba(255,204,0,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; line-height: 1.5; }
+.note strong { color: var(--text); }
+
+/* Tables */
+.tbl-wrap { overflow-x: auto; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tbl th { text-align: left; padding: 10px 12px; font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tbl th.r, .tbl td.r { text-align: right; }
+.tbl th.sortable { cursor: pointer; user-select: none; }
+.tbl th.sortable:hover { color: var(--text); }
+.tbl th.sorted { color: var(--accent); }
+.tbl td { padding: 11px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl tr:hover td { background: rgba(255,204,0,0.04); }
+.tbl td.wk { font-size: 0.8rem; color: var(--muted); text-align: right; padding: 11px 6px; }
+.tbl th.wk { text-align: right; padding: 10px 6px; }
+.tbl td.wk.best { color: var(--accent); font-weight: 700; }
+.tbl td.wk.blank { color: var(--faint); }
+.rank-num { font-weight: 800; font-size: 1rem; color: var(--muted); width: 32px; display: inline-block; text-align: center; }
+.rank-num.gold { color: #FFD700; } .rank-num.silver { color: #C0C0C0; } .rank-num.bronze { color: #CD7F32; }
+.team-name-cell { font-weight: 700; font-size: 0.95rem; }
+.sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; font-weight: 400; }
+.num { font-weight: 700; text-align: right; }
+.accent { color: var(--accent); }
+.badge { display: inline-block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 4px; }
+.badge-W { background: rgba(0,200,83,0.15); color: var(--win); border: 1px solid rgba(0,200,83,0.3); }
+.badge-L { background: rgba(255,68,68,0.15); color: var(--lose); border: 1px solid rgba(255,68,68,0.3); }
+.badge-T { background: rgba(255,255,255,0.08); color: var(--muted); border: 1px solid var(--faint); }
+.seed-line td { border-bottom: 2px dashed rgba(255,204,0,0.35); }
+
+/* Stat strip */
+.stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.stat-label { font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.stat-val { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+.stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Week tabs */
+.week-tabs-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.week-tab-btn { background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 0.8rem; font-weight: 700; padding: 7px 14px; cursor: pointer; transition: all 0.15s; position: relative; }
+.week-tab-btn small { display: block; font-size: 0.65rem; font-weight: 400; opacity: 0.75; }
+.week-tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+.week-tab-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.week-tab-btn.bye { opacity: 0.6; border-style: dashed; }
+.week-tab-btn.po { border-color: rgba(255,204,0,0.55); }
+.week-tab-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--win); position: absolute; top: -3px; right: -3px; }
+
+.upload-area { border: 1px dashed var(--border); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px; background: rgba(255,204,0,0.03); flex-wrap: wrap; }
+.upload-info { font-size: 0.85rem; color: var(--muted); }
+.upload-info strong { color: var(--text); display: block; margin-bottom: 2px; font-size: 0.92rem; }
+.upload-btn { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; color: var(--accent); font-size: 0.78rem; font-weight: 700; padding: 8px 16px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; transition: all 0.15s; }
+.upload-btn:hover { background: var(--accent); color: var(--bg); }
+
+.matches-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.match-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.match-card.pending { border-style: dashed; opacity: 0.85; }
+.match-card-header { background: var(--card2); padding: 8px 14px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; }
+.link { background: none; border: none; color: var(--muted); font-size: 0.7rem; text-decoration: underline; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.link:hover { color: var(--lose); }
+.match-scoreline { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); gap: 12px; }
+.match-team-name { font-weight: 800; font-size: 0.95rem; flex: 1; min-width: 0; }
+.match-team-name.winner { color: var(--accent); }
+.match-team-name.right { text-align: right; }
+.match-big-score { font-size: 1.7rem; font-weight: 900; white-space: nowrap; }
+.match-sep { color: var(--muted); font-size: 1rem; font-weight: 400; padding: 0 4px; }
+.match-cols { display: grid; grid-template-columns: 1fr 1fr; }
+.match-players { padding: 10px 14px; }
+.match-cols .match-players:first-child { border-right: 1px solid var(--line); }
+.match-player-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.82rem; gap: 8px; }
+.match-player-score { font-weight: 700; color: var(--muted); }
+.match-player-score.top { color: var(--accent); }
+.vs-line { padding: 18px 16px; text-align: center; font-weight: 700; font-size: 0.92rem; }
+.vs-line .vs { color: var(--muted); font-weight: 400; padding: 0 6px; }
+.vs-line .wait { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 400; margin-top: 6px; }
+
+.award-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.award-card { border-radius: 14px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; }
+.award-card.mvp { background: linear-gradient(135deg, #1a0633 0%, #2d1a00 100%); border: 1.5px solid var(--accent); }
+.award-card.aow { background: linear-gradient(135deg, #1a0633 0%, #1a0000 100%); border: 1.5px solid var(--lose); }
+.award-icon { font-size: 2.4rem; line-height: 1; }
+.award-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+.award-card.mvp .award-label { color: var(--accent); }
+.award-card.aow .award-label { color: var(--lose); }
+.award-name { font-size: 1.2rem; font-weight: 800; }
+.award-score { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+
+.bye-card { background: var(--card); border: 1px dashed var(--border); border-radius: 12px; padding: 40px 24px; text-align: center; }
+.bye-card .big { font-size: 2.2rem; margin-bottom: 10px; }
+.bye-card h3 { font-size: 1rem; color: var(--accent); margin-bottom: 6px; }
+.bye-card p { font-size: 0.85rem; color: var(--muted); }
+
+/* Segmented control */
+.seg { display: inline-flex; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; margin-bottom: 18px; flex-wrap: wrap; }
+.seg button { background: none; border: none; color: var(--muted); font-size: 0.82rem; font-weight: 700; padding: 7px 16px; border-radius: 7px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--accent); color: var(--bg); }
+.view-desc { font-size: 0.8rem; color: var(--muted); margin: -6px 0 16px; }
+
+/* Teams */
+.teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.team-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.team-card-head { background: var(--card2); padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.team-card-head .nm { font-weight: 800; color: var(--accent); font-size: 1rem; }
+.team-card-head .formerly { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+.team-card-body { padding: 10px 14px; }
+.team-card-foot { padding: 8px 14px 12px; font-size: 0.78rem; color: var(--muted); }
+.cap { color: var(--accent); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px; margin-left: 4px; }
+
+/* Charts */
+.chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.chart-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+
+/* Bracket */
+.champion-banner { margin: 20px 0; text-align: center; background: linear-gradient(135deg, #1a0633 0%, #2d1a00 100%); border: 1.5px solid var(--accent); border-radius: 14px; padding: 22px; font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+.bracket-wrap { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 28px; }
+.bracket-col { flex: 0 0 230px; display: flex; flex-direction: column; }
+.bracket-col-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); text-align: center; margin-bottom: 4px; }
+.bracket-col-date { font-size: 0.68rem; color: var(--muted); text-align: center; margin-bottom: 12px; }
+.bracket-col-body { display: flex; flex-direction: column; justify-content: space-around; gap: 18px; flex: 1; }
+.bracket-slot { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.82rem; }
+.bracket-slot.pending { opacity: 0.6; border-style: dashed; }
+.bracket-team { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; gap: 8px; }
+.bracket-team.winner { color: var(--accent); font-weight: 800; }
+.seed { color: var(--muted); font-size: 0.7rem; margin-right: 4px; font-weight: 400; }
+.seed-wrap { max-width: 620px; margin-bottom: 32px; }
+
+/* Season picker */
+.seasons-head { max-width: 1000px; margin: 0 auto; padding: 40px 24px 10px; }
+.seasons-head h2 { font-size: 1.6rem; font-weight: 900; margin: 18px 0 6px; }
+.seasons-head p { color: var(--muted); font-size: 0.9rem; }
+.seasons-grid { max-width: 1000px; margin: 0 auto; padding: 20px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.season-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px; cursor: pointer; text-align: left; color: var(--text); transition: all 0.15s; display: flex; flex-direction: column; gap: 10px; }
+.season-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.season-card .lbl { font-size: 1.3rem; font-weight: 900; color: var(--accent); }
+.season-card .status { font-size: 0.68rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.season-card .row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); gap: 10px; }
+.season-card .row b { color: var(--text); font-weight: 700; text-align: right; }
+.season-card.empty { cursor: default; opacity: 0.5; border-style: dashed; }
+.season-card.empty:hover { transform: none; border-color: var(--border); }
+
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-state .big-icon { font-size: 2.5rem; margin-bottom: 14px; opacity: 0.5; }
+.empty-state h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.empty-state p { font-size: 0.84rem; line-height: 1.6; max-width: 380px; margin: 0 auto; }
+
+.data-bar { max-width: 1280px; margin: 10px auto 0; padding: 18px 24px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); }
+.data-bar .grow { flex: 1; min-width: 200px; }
+
+
+/* The Rafters */
+.rafter-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 18px; overflow: hidden; }
+.rafter-head { background: var(--card2); padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rafter-head .nm { font-weight: 800; color: var(--accent); }
+.rafter-btns { display: flex; gap: 8px; }
+.discord { background: #313338; margin: 16px; border-radius: 8px; padding: 14px 16px; font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #dbdee1; font-size: 0.95rem; line-height: 1.45; }
+.discord-name { color: #f2f3f5; font-weight: 600; margin-bottom: 4px; }
+.discord-body b { color: #f2f3f5; }
+.rafter-ta { display: block; width: calc(100% - 32px); margin: 0 16px 16px; min-height: 260px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: ui-monospace, Menlo, monospace; font-size: 0.82rem; line-height: 1.5; resize: vertical; }
+.rafter-notes { padding: 0 16px 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.74rem; color: var(--muted); }
+.rafter-notes b { color: var(--text); font-weight: 600; }
+
+/* Modal */
+.modal-bg { position: fixed; inset: 0; background: rgba(10,0,25,0.75); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+.modal-bg.show { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--accent); border-radius: 14px; padding: 22px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { color: var(--accent); font-size: 1.05rem; margin-bottom: 8px; }
+.modal p { font-size: 0.84rem; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+.modal label.fl { display: block; font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 12px 0 6px; }
+.modal input[type=text], .modal select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 0.95rem; font-family: inherit; }
+.modal input[type=text]:focus, .modal select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.modal .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.blockbox { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; font-size: 0.82rem; }
+.blockbox .raw { font-weight: 800; }
+.blockbox .pl { color: var(--muted); margin-top: 3px; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--card2); border: 1px solid var(--accent); border-radius: 10px; padding: 12px 18px; font-size: 0.85rem; font-weight: 600; z-index: 200; transform: translateY(80px); opacity: 0; transition: all 0.3s; max-width: 340px; pointer-events: none; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.warn { border-color: var(--lose); }
+
+@media (max-width: 768px) {
+  .stats-strip { grid-template-columns: 1fr 1fr; }
+  .award-cards { grid-template-columns: 1fr; }
+  .topbar { padding: 12px 16px; }
+  .topbar h1 { font-size: 1rem; }
+  .main { padding: 18px 16px; }
+  .matches-row { grid-template-columns: 1fr; }
+  .tab { padding: 10px 12px; font-size: 0.84rem; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="restore-input" accept=".json" style="display:none">
+<script>
+/* =====================================================================
+   SAE TRIVIA LEAGUE DASHBOARD — v5
+   ---------------------------------------------------------------------
+   HOW TEAM NAMES WORK
+   • Every team has a permanent id (e.g. "ragio") that never changes.
+     Schedules, standings and the bracket all point at the id, so a
+     name change can never break anything.
+   • To rename a team mid-season: Teams tab → "Rename". That's it.
+     Every tab updates instantly, and CSVs that still use any old name
+     keep loading (old names are remembered as aliases).
+   • Teams are recognised in a CSV by their PLAYERS first, then by name,
+     so a jokey team name in a CSV doesn't matter.
+   • To set a name permanently in this file instead, edit `name:` below.
+   ===================================================================== */
+
+// ---------- SEASON 3 TEAMS (captain listed first) ----------
+const S3_TEAMS = [
+  { id: "ragio",     name: "Team Ragio",          captain: "Mike Ragio",     players: ["Mike Ragio", "Bennett Anderson", "Nolan Malone"] },
+  { id: "swain",     name: "Team Swain",          captain: "Will Swain",     players: ["Will Swain", "Chris Kulick", "Joey Nieman"] },
+  { id: "mikolich",  name: "Team Mikolich",       captain: "Sam Mikolich",   players: ["Sam Mikolich", "Chris Guest", "Charlie Bullock"] },
+  { id: "meyer",     name: "Goyim With Attitude", captain: "Sullivan Meyer", players: ["Sullivan Meyer", "Ryan Savoia", "Patrick Luckhaupt"], aliases: ["Team Meyer"] },
+  { id: "murtaugh",  name: "Team Murtaugh",       captain: "Nate Murtaugh",  players: ["Nate Murtaugh", "Eric Bachman", "Sam Bosworth"] },
+  { id: "clark",     name: "Judge and Jury",      captain: "Nick Clark",     players: ["Nick Clark", "Garrett Rotz", "Sean Quinn"], aliases: ["Team Clark"] },
+  { id: "acocella",  name: "Team Acocella",       captain: "Jamie Acocella", players: ["Jamie Acocella", "Jack Owen", "Andrew Williams"] },
+  { id: "berkowitz", name: "Team Berkowitz",      captain: "Josh Berkowitz", players: ["Josh Berkowitz", "Tyler Shapiro", "Andrew Urquiola"] },
+  { id: "obeto",     name: "Team Obeto",          captain: "John Obeto",     players: ["John Obeto", "Jack Neiland", "Justin Zuralow"] },
+];
+
+// ---------- SEASON 3 SCHEDULE ----------
+// Single round robin: 9 game weeks, every team plays the other 8 once and
+// hosts once (the host team has that week off). Sundays.
+const S3_SCHEDULE = [
+  { label: "Week 1", date: "Oct 11", host: "obeto", matches: [["ragio","berkowitz"], ["swain","acocella"], ["mikolich","clark"], ["meyer","murtaugh"]] },
+  { label: "Week 2", date: "Oct 18", host: "berkowitz", matches: [["acocella","obeto"], ["clark","ragio"], ["murtaugh","swain"], ["meyer","mikolich"]] },
+  { label: "Week 3", date: "Oct 25", host: "acocella", matches: [["berkowitz","clark"], ["obeto","murtaugh"], ["ragio","meyer"], ["swain","mikolich"]] },
+  { bye: true, label: "Bye", date: "Nov 1", note: "🎃 Halloween — league-wide bye, no games" },
+  { label: "Week 4", date: "Nov 8", host: "clark", matches: [["murtaugh","acocella"], ["meyer","berkowitz"], ["mikolich","obeto"], ["swain","ragio"]] },
+  { label: "Week 5", date: "Nov 15", host: "murtaugh", matches: [["clark","meyer"], ["acocella","mikolich"], ["berkowitz","swain"], ["obeto","ragio"]] },
+  { label: "Week 6", date: "Nov 22", host: "meyer", matches: [["mikolich","murtaugh"], ["swain","clark"], ["ragio","acocella"], ["obeto","berkowitz"]] },
+  { bye: true, label: "Bye", date: "Nov 29", note: "🦃 Thanksgiving — league-wide bye, no games" },
+  { label: "Week 7", date: "Dec 6", host: "mikolich", matches: [["meyer","swain"], ["murtaugh","ragio"], ["clark","obeto"], ["acocella","berkowitz"]] },
+  { label: "Week 8", date: "Dec 13", host: "swain", matches: [["ragio","mikolich"], ["obeto","meyer"], ["berkowitz","murtaugh"], ["acocella","clark"]] },
+  { label: "Week 9", date: "Dec 20", host: "ragio", matches: [["swain","obeto"], ["mikolich","berkowitz"], ["meyer","acocella"], ["murtaugh","clark"]] },
+  { bye: true, label: "Bye", date: "Dec 27", note: "🎄 Christmas — league-wide bye, no games" },
+];
+
+const S3_PLAYOFFS = [
+  { key: "playin",       label: "Play-In",      date: "Jan 3"  },
+  { key: "wildcard",     label: "Wild Card",    date: "Jan 10" },
+  { key: "semis",        label: "Semifinals",   date: "Jan 17" },
+  { key: "championship", label: "Championship", date: "Jan 24" },
+];
+
+// ---------- SEASON 2 (archived — final results baked in) ----------
+const S2_TEAMS = [
+  { id: "elite",   name: "THE ELITE MINDS",      captain: "Will Swain",      players: ["Will Swain", "Nick Clark", "Patrick Luckhaupt"] },
+  { id: "pledges", name: "PLEDGES",              captain: "Charlie Bullock", players: ["Charlie Bullock", "Garrett Rotz", "Sean Quinn"] },
+  { id: "bullpen", name: "BULLPEN BOYZ",         captain: "Justin Zuralow",  players: ["Justin Zuralow", "Mike Ragio", "Bennett Anderson"] },
+  { id: "squiz",   name: "SQUIZ MA BONER",       captain: "Nolan Malone",    players: ["Nolan Malone", "Chris Kulick", "Joey Round"] },
+  { id: "rm",      name: "RAPE MONSTERS",        captain: "Sam Mikolich",    players: ["Sam Mikolich", "John Obeto", "Jack Neiland"] },
+  { id: "bibi",    name: "CHILDREN OF BIBI",     captain: "Chris Guest",     players: ["Chris Guest", "Josh Berkowitz", "Tyler Shapiro"] },
+  { id: "nieman",  name: "NIEMAN'S STROKE GAME", captain: "Eric Bachman",    players: ["Eric Bachman", "Joey Nieman", "Ryan Savoia"] },
+  { id: "jto",     name: "JTO N EM",             captain: "Jamie Acocella",  players: ["Jamie Acocella", "Jack Owen", "Andrew Williams"] },
+  { id: "boz",     name: "BOZ AND THE BOYS",     captain: "Nate Murtaugh",   players: ["Nate Murtaugh", "Sullivan Meyer", "Sam Bosworth"] },
+];
+const S2_SCHEDULE = [
+  { label: "Week 1", date: "June 14", host: "boz", matches: [["jto","pledges"],["bullpen","squiz"],["rm","elite"],["bibi","nieman"]] },
+  { label: "Week 2", date: "June 21", host: "pledges", matches: [["boz","squiz"],["jto","elite"],["bullpen","nieman"],["rm","bibi"]] },
+  { label: "Week 3", date: "June 28", host: "squiz", matches: [["pledges","elite"],["boz","nieman"],["jto","bibi"],["bullpen","rm"]] },
+  { bye: true, label: "Week 4", date: "July 5", note: "🎉 Happy 4th of July — league-wide bye, no games" },
+  { label: "Week 5", date: "July 12", host: "elite", matches: [["squiz","nieman"],["pledges","bibi"],["boz","rm"],["jto","bullpen"]] },
+  { label: "Week 6", date: "July 19", host: "nieman", matches: [["elite","bibi"],["squiz","rm"],["pledges","bullpen"],["boz","jto"]] },
+  { label: "Week 7", date: "July 26", host: "bibi", matches: [["nieman","rm"],["elite","bullpen"],["squiz","jto"],["pledges","boz"]] },
+  { label: "Week 8", date: "Aug 2", host: "rm", matches: [["bibi","bullpen"],["nieman","jto"],["elite","boz"],["squiz","pledges"]] },
+  { label: "Week 9", date: "Aug 9", host: "bullpen", matches: [["rm","jto"],["bibi","boz"],["nieman","pledges"],["elite","squiz"]] },
+  { label: "Week 10", date: "Aug 16", host: "jto", matches: [["bullpen","boz"],["rm","pledges"],["bibi","squiz"],["nieman","elite"]] },
+];
+const S2_PLAYOFFS = [
+  { key: "playin",       label: "Play-In",      date: "Aug 23" },
+  { key: "wildcard",     label: "Wild Card",    date: "Aug 30" },
+  { key: "semis",        label: "Semifinals",   date: "Sep 6"  },
+  { key: "championship", label: "Championship", date: "Sep 21" },
+];
+// Cleaned Season 2 CSVs, exactly as they sit in "Triv Scores S2 Cleaned".
+const S2_ARCHIVE = {"weeks": [["Team,Total,Player,Score\nCHILDREN OF BIBI,13,--,--\nCHILDREN OF BIBI,,Chris Guest,6.5\nCHILDREN OF BIBI,,Josh Berkowitz,4\nCHILDREN OF BIBI,,Tyler Shapiro,2.5\nNIEMAN'S STROKE GAME,6,--,--\nNIEMAN'S STROKE GAME,,Eric Bachman,2.33\nNIEMAN'S STROKE GAME,,Ryan Savoia,1.83\nNIEMAN'S STROKE GAME,,Joey Nieman,1.83", "Team,Total,Player,Score\nJTO N EM,9,--,--\nJTO N EM,,Jack Owen,5\nJTO N EM,,Jamie Acocella,2\nJTO N EM,,Andrew Williams,1\nPLEDGES,6,--,--\nPLEDGES,,Sean Quinn,0\nPLEDGES,,Charlie Bullock,1.5\nPLEDGES,,Garrett Rotz,4.5", "Team,Total,Player,Score\nRAPE MONSTERS,4,--,--\nTHE ELITE MINDS,11,--,--", "Team,Total,Player,Score\nSQUIZ MA BONER,6,--,--\nSQUIZ MA BONER,,Nolan Malone,0.5\nSQUIZ MA BONER,,Chris Kulick,4.5\nSQUIZ MA BONER,,Joey Round,1\nBULLPEN BOYZ,13,--,--\nBULLPEN BOYZ,,Justin Zuralow,4.17\nBULLPEN BOYZ,,Mike Ragio,3.67\nBULLPEN BOYZ,,Bennett Anderson,5.17"], ["Team,Total,Player,Score\nCHILDREN OF BIBI,6,--,--\nCHILDREN OF BIBI,,Chris Guest,2\nCHILDREN OF BIBI,,Josh Berkowitz,2.5\nCHILDREN OF BIBI,,Tyler Shapiro,1.5\nRAPE MONSTERS,7,--,--\nRAPE MONSTERS,,Sam Mikolich,2\nRAPE MONSTERS,,Jack Neiland,0.5\nRAPE MONSTERS,,John Obeto,4.5", "Team,Total,Player,Score\nJTO N EM,5,--,--\nJTO N EM,,Jack Owen,3.5\nJTO N EM,,Jamie Acocella,1.5\nTHE ELITE MINDS,10,--,--\nTHE ELITE MINDS,,Patrick Luckhaupt,1.67\nTHE ELITE MINDS,,Nick Clark,3.67\nTHE ELITE MINDS,,Will Swain,4.67", "Team,Total,Player,Score\nNIEMAN'S STROKE GAME,8,--,--\nNIEMAN'S STROKE GAME,,Joey Nieman,2\nNIEMAN'S STROKE GAME,,Eric Bachman,2.5\nNIEMAN'S STROKE GAME,,Ryan Savoia,3.5\nBULLPEN BOYZ,9,--,--\nBULLPEN BOYZ,,Justin Zuralow,2\nBULLPEN BOYZ,,Bennett Anderson,3\nBULLPEN BOYZ,,Mike Ragio,3", "Team,Total,Player,Score\nSQUIZ MA BONER,5,--,--\nSQUIZ MA BONER,,Nolan Malone,1\nSQUIZ MA BONER,,Chris Kulick,1.5\nSQUIZ MA BONER,,Joey Round,2.5\nBOZ AND THE BOYS,11,--,--\nBOZ AND THE BOYS,,Nate Murtaugh,6.83\nBOZ AND THE BOYS,,Sullivan Meyer,3.83\nBOZ AND THE BOYS,,Sam Bosworth,0.33"], ["Team,Total,Player,Score\nBOZ AND THE BOYS,10,--,--\nBOZ AND THE BOYS,,Sam Bosworth,1.17\nBOZ AND THE BOYS,,Nate Murtaugh,4.17\nBOZ AND THE BOYS,,Sullivan Meyer,4.67\nNIEMAN'S STROKE GAME,9,--,--\nNIEMAN'S STROKE GAME,,Ryan Savoia,2.83\nNIEMAN'S STROKE GAME,,Joey Nieman,2.33\nNIEMAN'S STROKE GAME,,Eric Bachman,3.83", "Team,Total,Player,Score\nBULLPEN BOYZ,10,--,--\nBULLPEN BOYZ,,Justin Zuralow,2.5\nBULLPEN BOYZ,,Bennett Anderson,3\nBULLPEN BOYZ,,Mike Ragio,4.5\nRAPE MONSTERS,13,--,--\nRAPE MONSTERS,,John Obeto,3.83\nRAPE MONSTERS,,Sam Mikolich,4.33\nRAPE MONSTERS,,Jack Neiland,4.83", "Team,Total,Player,Score\nCHILDREN OF BIBI,7,--,--\nCHILDREN OF BIBI,,Chris Guest,2\nCHILDREN OF BIBI,,Tyler Shapiro,6\nCHILDREN OF BIBI,,Josh Berkowitz,0\nJTO N EM,9,--,--\nJTO N EM,,Jamie Acocella,6\nJTO N EM,,Jack Owen,4", "Team,Total,Player,Score\nTHE ELITE MINDS,6,--,--\nTHE ELITE MINDS,,Nick Clark,4.5\nTHE ELITE MINDS,,Will Swain,1.5\nTHE ELITE MINDS,,Patrick Luckhaupt,0\nPLEDGES,13,--,--\nPLEDGES,,Garrett Rotz,4.5\nPLEDGES,,Charlie Bullock,4.5\nPLEDGES,,Sean Quinn,4"], [], ["Team,Total,Player,Score\nCHILDREN OF BIBI,10,--,--\nCHILDREN OF BIBI,,Chris Guest,2.33\nCHILDREN OF BIBI,,Josh Berkowitz,4.83\nCHILDREN OF BIBI,,Tyler Shapiro,2.83\nPLEDGES,8,--,--\nPLEDGES,,Charlie Bullock,2.33\nPLEDGES,,Sean Quinn,2.33\nPLEDGES,,Garrett Rotz,3.33", "Team,Total,Player,Score\nJTO N EM,4,--,--\nJTO N EM,,Jamie Acocella,2.33\nJTO N EM,,Andrew Williams,0.33\nJTO N EM,,Jack Owen,1.33\nBULLPEN BOYZ,8,--,--\nBULLPEN BOYZ,,Mike Ragio,3.5\nBULLPEN BOYZ,,Bennett Anderson,3\nBULLPEN BOYZ,,Justin Zuralow,1.5", "Team,Total,Player,Score\nRAPE MONSTERS,10,--,--\nRAPE MONSTERS,,Sam Mikolich,2.5\nRAPE MONSTERS,,John Obeto,6\nRAPE MONSTERS,,Jack Neiland,1.5\nBOZ AND THE BOYS,12,--,--\nBOZ AND THE BOYS,,Nate Murtaugh,5.83\nBOZ AND THE BOYS,,Sam Bosworth,1.83\nBOZ AND THE BOYS,,Sullivan Meyer,4.33", "Team,Total,Player,Score\nSQUIZ MA BONER,5,--,--\nSQUIZ MA BONER,,Nolan Malone,1.83\nSQUIZ MA BONER,,Chris Kulick,0.33\nSQUIZ MA BONER,,Joey Round,2.83\nNIEMAN'S STROKE GAME,6,--,--\nNIEMAN'S STROKE GAME,,Eric Bachman,2.33\nNIEMAN'S STROKE GAME,,Joey Nieman,3.33\nNIEMAN'S STROKE GAME,,Ryan Savoia,0.33"], ["Team,Total,Player,Score\nBOZ AND THE BOYS,7,--,--\nBOZ AND THE BOYS,,Nate Murtaugh,2.5\nBOZ AND THE BOYS,,Sam Bosworth,0\nBOZ AND THE BOYS,,Sullivan Meyer,4.5\nJTO N EM,9,--,--\nJTO N EM,,Jack Owen,2.33\nJTO N EM,,Andrew Williams,2.33\nJTO N EM,,Jamie Acocella,4.33", "Team,Total,Player,Score\nBULLPEN BOYZ,10,--,--\nBULLPEN BOYZ,,Justin Zuralow,5\nBULLPEN BOYZ,,Mike Ragio,5\nBULLPEN BOYZ,,Bennett Anderson,0\nPLEDGES,2,--,--\nPLEDGES,,Sean Quinn,0.33\nPLEDGES,,Charlie Bullock,0.33", "Team,Total,Player,Score\nCHILDREN OF BIBI,9,--,--\nCHILDREN OF BIBI,,Chris Guest,2.5\nCHILDREN OF BIBI,,Josh Berkowitz,5\nCHILDREN OF BIBI,,Tyler Shapiro,1.5\nTHE ELITE MINDS,7,--,--\nTHE ELITE MINDS,,Nick Clark,3.33\nTHE ELITE MINDS,,Will Swain,3.33\nTHE ELITE MINDS,,Patrick Luckhaupt,1.33", "Team,Total,Player,Score\nSQUIZ MA BONER,6,--,--\nSQUIZ MA BONER,,Nolan Malone,2.5\nSQUIZ MA BONER,,Chris Kulick,3.5\nSQUIZ MA BONER,,Joey Round,0\nRAPE MONSTERS,12,--,--\nRAPE MONSTERS,,Sam Mikolich,7\nRAPE MONSTERS,,John Obeto,5\nRAPE MONSTERS,,Jack Neiland,0"], ["Team,Total,Player,Score\nBOZ AND THE BOYS,12,--,--\nBOZ AND THE BOYS,,Sullivan Meyer,2.33\nBOZ AND THE BOYS,,Nate Murtaugh,8.33\nBOZ AND THE BOYS,,Sam Bosworth,1.33\nPLEDGES,5,--,--\nPLEDGES,,Charlie Bullock,2.5\nPLEDGES,,Garrett Rotz,1.5\nPLEDGES,,Sean Quinn,0", "Team,Total,Player,Score\nBULLPEN BOYZ,1,--,--\nBULLPEN BOYZ,,Justin Zuralow,0\nBULLPEN BOYZ,,Mike Ragio,0\nBULLPEN BOYZ,,Bennett Anderson,1\nTHE ELITE MINDS,13,--,--\nTHE ELITE MINDS,,Nick Clark,5.5\nTHE ELITE MINDS,,Will Swain,7.5", "Team,Total,Player,Score\nNIEMAN'S STROKE GAME,5,--,--\nNIEMAN'S STROKE GAME,,Joey Nieman,0\nNIEMAN'S STROKE GAME,,Ryan Savoia,3\nNIEMAN'S STROKE GAME,,Eric Bachman,2\nRAPE MONSTERS,15,--,--\nRAPE MONSTERS,,John Obeto,4\nRAPE MONSTERS,,Sam Mikolich,4.5\nRAPE MONSTERS,,Jack Neiland,6.5", "Team,Total,Player,Score\nSQUIZ MA BONER,9,--,--\nSQUIZ MA BONER,,Nolan Malone,2\nSQUIZ MA BONER,,Chris Kulick,5\nSQUIZ MA BONER,,Joey Round,1\nJTO N EM,8,--,--\nJTO N EM,,Jack Owen,3.5\nJTO N EM,,Andrew Williams,2\nJTO N EM,,Jamie Acocella,2.5"], ["Team,Total,Player,Score\nBULLPEN BOYZ,11,--,--\nCHILDREN OF BIBI,8,--,--", "Team,Total,Player,Score\nJTO N EM,8,--,--\nJTO N EM,,Jamie Acocella,5.5\nJTO N EM,,Jack Owen,2.5\nNIEMAN'S STROKE GAME,10,--,--\nNIEMAN'S STROKE GAME,,Eric Bachman,4\nNIEMAN'S STROKE GAME,,Joey Nieman,4\nNIEMAN'S STROKE GAME,,Ryan Savoia,2", "Team,Total,Player,Score\nPLEDGES,7,--,--\nPLEDGES,,Garrett Rotz,2.83\nPLEDGES,,Charlie Bullock,1.33\nPLEDGES,,Sean Quinn,2.83\nSQUIZ MA BONER,8,--,--\nSQUIZ MA BONER,,Nolan Malone,0.5\nSQUIZ MA BONER,,Joey Round,1.5\nSQUIZ MA BONER,,Chris Kulick,5", "Team,Total,Player,Score\nTHE ELITE MINDS,12,--,--\nTHE ELITE MINDS,,Will Swain,5.17\nTHE ELITE MINDS,,Patrick Luckhaupt,1.17\nTHE ELITE MINDS,,Nick Clark,5.67\nBOZ AND THE BOYS,8,--,--\nBOZ AND THE BOYS,,Sam Bosworth,2.33\nBOZ AND THE BOYS,,Nate Murtaugh,1.83\nBOZ AND THE BOYS,,Sullivan Meyer,4.83"], ["Team,Total,Player,Score\nCHILDREN OF BIBI,2,--,--\nCHILDREN OF BIBI,,Chris Guest,1.5\nCHILDREN OF BIBI,,Tyler Shapiro,0.5\nBOZ AND THE BOYS,10,--,--\nBOZ AND THE BOYS,,Nate Murtaugh,2.5\nBOZ AND THE BOYS,,Sullivan Meyer,3.5\nBOZ AND THE BOYS,,Sam Bosworth,4", "Team,Total,Player,Score\nNIEMAN'S STROKE GAME,3,--,--\nNIEMAN'S STROKE GAME,,Eric Bachman,0.83\nNIEMAN'S STROKE GAME,,Ryan Savoia,1.83\nNIEMAN'S STROKE GAME,,Joey Nieman,0.33\nPLEDGES,9,--,--\nPLEDGES,,Garrett Rotz,2\nPLEDGES,,Charlie Bullock,2\nPLEDGES,,Sean Quinn,5", "Team,Total,Player,Score\nRAPE MONSTERS,10,--,--\nRAPE MONSTERS,,John Obeto,3\nRAPE MONSTERS,,Sam Mikolich,5.5\nRAPE MONSTERS,,Jack Neiland,1.5\nJTO N EM,5,--,--\nJTO N EM,,Jamie Acocella,1.5\nJTO N EM,,Andrew Williams,1\nJTO N EM,,Jack Owen,2.5", "Team,Total,Player,Score\nTHE ELITE MINDS,7,--,--\nTHE ELITE MINDS,,Nick Clark,1.33\nTHE ELITE MINDS,,Will Swain,2.33\nTHE ELITE MINDS,,Patrick Luckhaupt,3.33\nSQUIZ MA BONER,8,--,--\nSQUIZ MA BONER,,Nolan Malone,1.67\nSQUIZ MA BONER,,Chris Kulick,4.67\nSQUIZ MA BONER,,,1.67"], ["Team,Total,Player,Score\nBULLPEN BOYZ,13,--,--\nBULLPEN BOYZ,,Justin Zuralow,2.83\nBULLPEN BOYZ,,Bennett Anderson,4.83\nBULLPEN BOYZ,,Mike Ragio,5.33\nBOZ AND THE BOYS,11,--,--\nBOZ AND THE BOYS,,Nate Murtaugh,4.17\nBOZ AND THE BOYS,,Sullivan Meyer,4.17\nBOZ AND THE BOYS,,Sam Bosworth,2.67", "Team,Total,Player,Score\nCHILDREN OF BIBI,14,--,--\nCHILDREN OF BIBI,,Chris Guest,2\nCHILDREN OF BIBI,,Josh Berkowitz,7\nCHILDREN OF BIBI,,Tyler Shapiro,5\nSQUIZ MA BONER,5,--,--\nSQUIZ MA BONER,,Chris Kulick,1", "Team,Total,Player,Score\nNIEMAN'S STROKE GAME,9,--,--\nNIEMAN'S STROKE GAME,,Joey Nieman,4.83\nNIEMAN'S STROKE GAME,,Ryan Savoia,1.83\nTHE ELITE MINDS,10,--,--\nTHE ELITE MINDS,,Will Swain,3.17\nTHE ELITE MINDS,,Nick Clark,5.17\nTHE ELITE MINDS,,Patrick Luckhaupt,1.67", "Team,Total,Player,Score\nPLEDGES,6,--,--\nPLEDGES,,Charlie Bullock,1\nPLEDGES,,Garrett Rotz,4\nPLEDGES,,Sean Quinn,1\nRAPE MONSTERS,15,--,--\nRAPE MONSTERS,,Jack Neiland,3.5\nRAPE MONSTERS,,John Obeto,8.5\nRAPE MONSTERS,,Sam Mikolich,3"]], "playoffs": {"playin": ["Team,Total,Player,Score\nNIEMAN'S STROKE GAME,8,--,--\nNIEMAN'S STROKE GAME,,Joey Nieman,2\nNIEMAN'S STROKE GAME,,Eric Bachman,4\nNIEMAN'S STROKE GAME,,Ryan Savoia,1\nPLEDGES,12,--,--\nPLEDGES,,Charlie Bullock,2.67\nPLEDGES,,Garrett Rotz,4.67\nPLEDGES,,Sean Quinn,3.67"], "wildcard": ["Team,Total,Player,Score\nBULLPEN BOYZ,8,--,--\nBULLPEN BOYZ,,Justin Zuralow,1.33\nBULLPEN BOYZ,,Mike Ragio,2.83\nBULLPEN BOYZ,,Bennett Anderson,3.83\nSQUIZ MA BONER,9,--,--\nSQUIZ MA BONER,,Chris Kulick,2\nSQUIZ MA BONER,,Nolan Malone,4", "Team,Total,Player,Score\nJTO N EM,11,--,--\nJTO N EM,,Jamie Acocella,5.67\nJTO N EM,,Jack Owen,2.67\nJTO N EM,,Andrew Williams,2.67\nBOZ AND THE BOYS,10,--,--\nBOZ AND THE BOYS,,Sam Bosworth,3.67\nBOZ AND THE BOYS,,Nate Murtaugh,2.17\nBOZ AND THE BOYS,,Sullivan Meyer,4.17", "Team,Total,Player,Score\nRAPE MONSTERS,9,--,--\nRAPE MONSTERS,,Sam Mikolich,4\nRAPE MONSTERS,,Jack Neiland,2\nRAPE MONSTERS,,John Obeto,3\nPLEDGES,11,--,--\nPLEDGES,,Charlie Bullock,3\nPLEDGES,,Sean Quinn,4\nPLEDGES,,Garrett Rotz,4", "Team,Total,Player,Score\nTHE ELITE MINDS,10,--,--\nTHE ELITE MINDS,,Will Swain,2.83\nTHE ELITE MINDS,,Nick Clark,5.33\nTHE ELITE MINDS,,Patrick Luckhaupt,1.83\nCHILDREN OF BIBI,11,--,--\nCHILDREN OF BIBI,,Chris Guest,3\nCHILDREN OF BIBI,,Josh Berkowitz,4\nCHILDREN OF BIBI,,Tyler Shapiro,4"], "semis": ["Team,Total,Player,Score\nJTO N EM,8,--,--\nJTO N EM,,Jack Owen,2.17\nJTO N EM,,Jamie Acocella,5.17\nJTO N EM,,Andrew Williams,0.67\nSQUIZ MA BONER,6,--,--\nSQUIZ MA BONER,,Nolan Malone,1\nSQUIZ MA BONER,,Chris Kulick,5", "Team,Total,Player,Score\nPLEDGES,10,--,--\nPLEDGES,,Charlie Bullock,3.67\nPLEDGES,,Sean Quinn,2.67\nPLEDGES,,Garrett Rotz,3.67\nCHILDREN OF BIBI,9,--,--\nCHILDREN OF BIBI,,Chris Guest,0\nCHILDREN OF BIBI,,Josh Berkowitz,6.5\nCHILDREN OF BIBI,,Tyler Shapiro,2.5"], "championship": ["Team,Total,Player,Score\nPLEDGES,10,--,--\nPLEDGES,,Charlie Bullock,1.67\nPLEDGES,,Garrett Rotz,5.67\nPLEDGES,,Sean Quinn,2.67\nJTO N EM,11,--,--\nJTO N EM,,Jamie Acocella,5.83\nJTO N EM,,Jack Owen,1.83\nJTO N EM,,Andrew Williams,2.33"]}};
+
+
+// ---------- SEASON 1 (archived — rebuilt Oct 2026 from Downloads CSVs + the "Standings" Google Sheet) ----------
+// Scores were only recorded from Week 3. Weeks 1-2 and two Week 7 games are team totals only.
+// Week 1 Bear Jew & Co 10 – Jerkin' Zebras 10 went to OT; Zebras won (per the sheet's final standings).
+const S1_TEAMS = [
+  { id: "qt", name: "Quizlamic Terrorists", captain: "Will Swain", players: ["Will Swain", "Joey Round", "Jamie Acocella"] },
+  { id: "vor", name: "Victims of Rape", captain: "Chris Guest", players: ["Chris Guest", "Patrick Luckhaupt", "Jack Owen"] },
+  { id: "boz", name: "Boz and the Boyz", captain: "Nate Murtaugh", players: ["Nate Murtaugh", "Sam Bosworth", "Sullivan Meyer"] },
+  { id: "gob", name: "Goblin Mode", captain: "Sam Mikolich", players: ["Sam Mikolich", "Eric Bachman", "Bennett Anderson"] },
+  { id: "zeb", name: "Jerkin' Zebras", captain: "Justin Zuralow", players: ["Justin Zuralow", "John Obeto", "Nick Flynn"] },
+  { id: "mid", name: "Mental Midgets", captain: "Mike Ragio", players: ["Mike Ragio", "Nick Clark", "Mike Roux"] },
+  { id: "bj", name: "Bear Jew & Co", captain: "Chris Kulick", players: ["Chris Kulick", "Joey Nieman", "Josh Berkowitz"] },
+];
+const S1_SCHEDULE = [
+  { label: "Week 1", date: "Jan 11", off: "qt", matches: [["gob", "mid"], ["bj", "zeb"], ["vor", "boz"]] },
+  { label: "Week 2", date: "Jan 18", off: "mid", matches: [["zeb", "boz"], ["qt", "bj"], ["gob", "vor"]] },
+  { label: "Week 3", date: "Jan 25", off: "bj", matches: [["qt", "vor"], ["zeb", "mid"], ["boz", "gob"]] },
+  { label: "Week 4", date: "Feb 1", off: "boz", matches: [["gob", "qt"], ["zeb", "vor"], ["bj", "mid"]] },
+  { label: "Week 5", date: "Feb 15", off: "vor", matches: [["bj", "boz"], ["qt", "mid"], ["zeb", "gob"]] },
+  { label: "Week 6", date: "Feb 22", off: "gob", matches: [["qt", "zeb"], ["bj", "vor"], ["mid", "boz"]] },
+  { label: "Week 7", date: "Mar 1*", off: "zeb", matches: [["qt", "boz"], ["vor", "mid"], ["gob", "bj"]] },
+];
+const RAFTERS_ARCHIVE_S1 = `__**SAETL SEASON ONE: Jan 11, 2026 - March 31, 2026**__
+**Champions**: Boz and the Boyz (Boz, Murt, Sulli)
+
+**MVP**: Jamie Acocella (6.00 PPG)
+
+**Ass of the Year**: Mike Roux (1.33 PPG)
+
+**Commissioner's Cup (best regular season)**: Boz and the Boyz (4-2, 68 PF)
+
+**Single game high (team)**: Boz and the Boyz - Week 6 (18 points)
+
+**Single game high (player)**: Jamie Acocella - Week 6 (8.67 points)`;
+const S1_PLAYOFFS = [{ key: "quarterfinals", label: "Quarterfinals", date: "March" }];
+const S1_ARCHIVE = {"weeks": [["Team,Total,Player,Score\nGoblin Mode,9,--,--\nMental Midgets,8,--,--", "Team,Total,Player,Score\nBear Jew & Co,10,--,--\nJerkin' Zebras,10,--,--", "Team,Total,Player,Score\nVictims of Rape,14,--,--\nBoz and the Boyz,7,--,--"], ["Team,Total,Player,Score\nJerkin' Zebras,9,--,--\nBoz and the Boyz,8,--,--", "Team,Total,Player,Score\nQuizlamic Terrorists,15,--,--\nBear Jew & Co,9,--,--", "Team,Total,Player,Score\nGoblin Mode,11,--,--\nVictims of Rape,7,--,--"], ["Team,Total,Player,Score\nQuizlamic Terrorists,10,--,--\nQuizlamic Terrorists,,Will Swain,1.83\nQuizlamic Terrorists,,Joey Round,1.33\nQuizlamic Terrorists,,Jamie Acocella,6.83\nVictims of Rape,12,--,--\nVictims of Rape,,Patrick Luckhaupt,2\nVictims of Rape,,Chris Guest,3\nVictims of Rape,,Jack Owen,7", "Team,Total,Player,Score\nBoz and the Boyz,12,--,--\nBoz and the Boyz,,Nate Murtaugh,7.33\nBoz and the Boyz,,Sam Bosworth,1.83\nBoz and the Boyz,,Sullivan Meyer,3.83\nGoblin Mode,10,--,--\nGoblin Mode,,Bennett Anderson,2\nGoblin Mode,,Sam Mikolich,3.5\nGoblin Mode,,Eric Bachman,4.5", "Team,Total,Player,Score\nJerkin' Zebras,6,--,--\nJerkin' Zebras,,Justin Zuralow,4\nJerkin' Zebras,,John Obeto,0.5\nJerkin' Zebras,,Nick Flynn,1.5\nMental Midgets,9,--,--\nMental Midgets,,Mike Ragio,4.83\nMental Midgets,,Nick Clark,3.33\nMental Midgets,,Mike Roux,0.83"], ["Team,Total,Player,Score\nBear Jew & Co,14,--,--\nBear Jew & Co,,Joey Nieman,2.33\nBear Jew & Co,,Chris Kulick,6.33\nBear Jew & Co,,Josh Berkowitz,5.33\nMental Midgets,8,--,--\nMental Midgets,,Mike Ragio,1.33\nMental Midgets,,Nick Clark,3.33\nMental Midgets,,Jack Neiland,3.33", "Team,Total,Player,Score\nJerkin' Zebras,11,--,--\nJerkin' Zebras,,John Obeto,4.5\nJerkin' Zebras,,Justin Zuralow,4.5\nJerkin' Zebras,,Nick Flynn,2\nVictims of Rape,10,--,--\nVictims of Rape,,Chris Guest,2.67\nVictims of Rape,,Jack Owen,3.67\nVictims of Rape,,Patrick Luckhaupt,3.67", "Team,Total,Player,Score\nGoblin Mode,8,--,--\nGoblin Mode,,Sam Mikolich,2.33\nGoblin Mode,,Bennett Anderson,3.33\nGoblin Mode,,Eric Bachman,2.33\nQuizlamic Terrorists,11,--,--\nQuizlamic Terrorists,,Will Swain,2\nQuizlamic Terrorists,,Joey Round,3.5\nQuizlamic Terrorists,,Jamie Acocella,5.5"], ["Team,Total,Player,Score\nQuizlamic Terrorists,7,--,--\nQuizlamic Terrorists,,Jamie Acocella,3\nQuizlamic Terrorists,,Joey Round,3\nQuizlamic Terrorists,,Will Swain,1\nMental Midgets,8,--,--\nMental Midgets,,Nick Clark,1.33\nMental Midgets,,Mike Ragio,4.33\nMental Midgets,,Mike Roux,2.33", "Team,Total,Player,Score\nJerkin' Zebras,9,--,--\nJerkin' Zebras,,John Obeto,2.83\nJerkin' Zebras,,Nick Flynn,3.33\nJerkin' Zebras,,Justin Zuralow,1.83\nGoblin Mode,11,--,--\nGoblin Mode,,Sam Mikolich,3.67\nGoblin Mode,,Eric Bachman,1.67\nGoblin Mode,,Bennett Anderson,5.67", "Team,Total,Player,Score\nBear Jew & Co,10,--,--\nBear Jew & Co,,Chris Kulick,2.33\nBear Jew & Co,,Ryan Savoia,1.33\nBear Jew & Co,,Josh Berkowitz,5.33\nBoz and the Boyz,11,--,--\nBoz and the Boyz,,Nate Murtaugh,2.67\nBoz and the Boyz,,Sam Bosworth,2.17\nBoz and the Boyz,,Sullivan Meyer,5.17"], ["Team,Total,Player,Score\nQuizlamic Terrorists,15,--,--\nQuizlamic Terrorists,,Will Swain,3.67\nQuizlamic Terrorists,,Joey Round,2.67\nQuizlamic Terrorists,,Jamie Acocella,8.67\nJerkin' Zebras,4,--,--\nJerkin' Zebras,,Justin Zuralow,3\nJerkin' Zebras,,Nick Flynn,0\nJerkin' Zebras,,John Obeto,1", "Team,Total,Player,Score\nMental Midgets,8,--,--\nMental Midgets,,Nick Clark,4\nMental Midgets,,Mike Ragio,1.5\nMental Midgets,,Jack Neiland,2.5\nBoz and the Boyz,18,--,--\nBoz and the Boyz,,Sam Bosworth,5.67\nBoz and the Boyz,,Sullivan Meyer,6.17\nBoz and the Boyz,,Nate Murtaugh,6.17", "Team,Total,Player,Score\nBear Jew & Co,14,--,--\nBear Jew & Co,,Chris Kulick,4.33\nBear Jew & Co,,Josh Berkowitz,6.83\nBear Jew & Co,,Joey Nieman,2.83\nVictims of Rape,6,--,--\nVictims of Rape,,Ryan Savoia,1.5\nVictims of Rape,,Chris Guest,2.5\nVictims of Rape,,Jack Owen,2"], ["Team,Total,Player,Score\nVictims of Rape,7,--,--\nVictims of Rape,,Chris Guest,4\nVictims of Rape,,Patrick Luckhaupt,1\nVictims of Rape,,Jack Owen,2\nMental Midgets,8,--,--\nMental Midgets,,Mike Ragio,7.33\nMental Midgets,,Nick Clark,1\nMental Midgets,,Mike Roux,0.67", "Team,Total,Player,Score\nQuizlamic Terrorists,11,--,--\nBoz and the Boyz,12,--,--", "Team,Total,Player,Score\nGoblin Mode,13,--,--\nBear Jew & Co,9,--,--"]], "playoffs": {"quarterfinals": ["Team,Total,Player,Score\nJerkin' Zebras,13,--,--\nJerkin' Zebras,,Justin Zuralow,6.17\nJerkin' Zebras,,John Obeto,5.67\nJerkin' Zebras,,Nick Flynn,1.17\nMental Midgets,9,--,--\nMental Midgets,,Nick Clark,1.5\nMental Midgets,,Mike Ragio,6\nMental Midgets,,Mike Roux,1.5", "Team,Total,Player,Score\nQuizlamic Terrorists,8,--,--\nQuizlamic Terrorists,,Will Swain,1\nQuizlamic Terrorists,,Joey Round,3\nQuizlamic Terrorists,,Jamie Acocella,4\nBear Jew & Co,10,--,--\nBear Jew & Co,,Chris Kulick,3\nBear Jew & Co,,Joey Nieman,2.17\nBear Jew & Co,,Josh Berkowitz,4.83", "Team,Total,Player,Score\nGoblin Mode,10,--,--\nGoblin Mode,,Eric Bachman,2.17\nGoblin Mode,,Bennett Anderson,3.67\nGoblin Mode,,Sam Mikolich,4.17\nVictims of Rape,10,--,--\nVictims of Rape,,Chris Guest,3.67\nVictims of Rape,,Jack Owen,3.17\nVictims of Rape,,Patrick Luckhaupt,3.17"]}};
+
+// ---------- ALL SEASONS (newest first; the first entry is the landing page) ----------
+const SEASONS = [
+  { id: "s3", num: 3, label: "Season 3", dates: "Oct 11, 2026 – Jan 24, 2027", postDates: "Oct 11, 2026 - Jan 24, 2027", editable: true,  teams: S3_TEAMS, schedule: S3_SCHEDULE, playoffs: S3_PLAYOFFS },
+  { id: "s2", num: 2, label: "Season 2", dates: "Jun 14 – Sep 21, 2026", postDates: "June 14 - Sep 21, 2026", editable: false,
+    rafterOverrides: { lightsTooBright: "Andrew Williams (.67 pts, semifinal round)" }, teams: S2_TEAMS, schedule: S2_SCHEDULE, playoffs: S2_PLAYOFFS, archive: S2_ARCHIVE },
+  { id: "s1", num: 1, label: "Season 1", dates: "Jan 11 – Mar 31, 2026", editable: false, format: "simple", champion: "boz",
+    otWinners: [{ week: 0, winner: "zeb", loser: "bj" }], rafterPost: RAFTERS_ARCHIVE_S1,
+    notes: "Rebuilt from the Downloads CSVs and the Standings sheet. Scores were only recorded from Week 3 — Weeks 1–2 and two Week 7 games are team totals only. *Week 7 date estimated. The 3 playoff games are the S1 files that aren't on the regular-season schedule; they line up exactly as a 7-team quarterfinal (2v7, 3v6, 4v5, 1 seed Boz on a bye). No semifinal or championship files were found, and Goblin Mode vs Victims of Rape ended 10–10 with no recorded tiebreaker.",
+    teams: S1_TEAMS, schedule: S1_SCHEDULE, playoffs: S1_PLAYOFFS, archive: S1_ARCHIVE },
+];
+const PAST_SEASONS_WITHOUT_DATA = [];
+
+// ---------- CHAMPIONSHIP RINGS FROM SEASONS WITHOUT SCORE DATA ----------
+// Seasons in SEASONS award rings automatically from the bracket; list older champions here.
+const EXTRA_RINGS = [];
+
+// ---------- THE RAFTERS ----------
+// Short names used in the "Champions" line, e.g. "JTO n Em (Jamie, JTO, Andy)".
+// Anyone not listed here goes by their first name.
+const RAFTERS_NICKNAMES = { "Jack Owen": "JTO", "Andrew Williams": "Andy", "Nate Murtaugh": "Murt", "Sullivan Meyer": "Sulli", "Sam Bosworth": "Boz" };
+// Seasons with no score data — their posts are kept word for word.
+// Season posts written before the dashboard existed are kept word for word on the season itself (rafterPost).
+const RAFTERS_ARCHIVE = [];
+
+/* ============================== UTILITIES ============================== */
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+const fmt = (n, d = 2) => (n == null || isNaN(n)) ? '—' : Number(n).toFixed(d);
+const fmtScore = n => Number.isInteger(n) ? String(n) : String(+n.toFixed(2));
+const pctStr = p => { const s = p.toFixed(3); return s.startsWith('1') ? s : s.slice(1); };
+const seasonById = id => SEASONS.find(s => s.id === id);
+const gameWeeks = s => s.schedule.map((w, i) => ({ ...w, idx: i })).filter(w => !w.bye);
+
+function splitLine(l) {
+  const parts = []; let cur = '', q = false;
+  for (const c of l) {
+    if (c === '"') q = !q;
+    else if (c === ',' && !q) { parts.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  parts.push(cur.trim());
+  return parts;
+}
+
+// Accepts the cleaned format (Team,Total,Player,Score with a "--" total row)
+// and bare "TeamName,Total" exports. Returns exactly two team blocks or null.
+function parseCSV(text) {
+  const rows = String(text).replace(/^﻿/, '').replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean).map(splitLine);
+  const blocks = []; let cur = null;
+  for (const r of rows) {
+    if (!r[0]) continue;
+    if (/^team$/i.test(r[0]) && /^total$/i.test(r[1] || '')) continue;
+    const player = (r[2] || '').trim();
+    if (player === '' || player === '--') {
+      const tot = parseFloat(r[1]);
+      if (isNaN(tot)) continue;
+      cur = { rawName: r[0], total: tot, players: [] };
+      blocks.push(cur);
+    } else if (cur) {
+      const sc = parseFloat(r[3]);
+      if (!isNaN(sc)) cur.players.push({ name: player, score: sc });
+    }
+  }
+  return blocks.length === 2 ? blocks : null;
+}
+
+/* ============================== STORAGE ============================== */
+const STORE_KEY = 'sae_trivia_v5';
+let store = {};
+try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { store = {}; }
+function saveStore() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+  catch (e) { toast('Could not save to this browser — use Backup to keep a copy', true); }
+}
+const blankSeasonStore = () => ({ weeks: {}, playoffs: {}, teamEdits: {}, aliases: {}, assign: {} });
+const archiveStores = {};
+function seasonStore(s) {
+  if (s.archive) {
+    if (!archiveStores[s.id]) {
+      const st = blankSeasonStore();
+      s.archive.weeks.forEach((w, i) => { st.weeks[i] = w; });
+      st.playoffs = s.archive.playoffs;
+      archiveStores[s.id] = st;
+    }
+    return archiveStores[s.id];
+  }
+  if (!store[s.id]) store[s.id] = blankSeasonStore();
+  const st = store[s.id];
+  for (const k of Object.keys(blankSeasonStore())) if (!st[k]) st[k] = {};
+  return st;
+}
+
+/* ============================== TEAMS ============================== */
+function teamsFor(s) {
+  const st = seasonStore(s);
+  return s.teams.map(t => {
+    const ed = st.teamEdits[t.id] || {};
+    const name = ed.name || t.name;
+    const history = (ed.history || []).filter(n => n !== name);
+    const learned = st.aliases[t.id] || [];
+    const last = t.captain.split(' ').slice(-1)[0];
+    const keys = [name, t.name, ...history, ...learned, ...(t.aliases || []), 'Team ' + last, last, t.captain];
+    return { ...t, name, originalName: t.name, history, learned, nameKeys: new Set(keys.map(norm)), playerSet: new Set(t.players.map(norm)) };
+  });
+}
+
+// Which team is each block? Players first (most roster matches wins),
+// then the team name (current, past names, learned aliases, "Team <Captain>").
+function resolveBlocks(teams, blocks, fixed) {
+  const ids = blocks.map((b, i) => {
+    if (fixed && fixed[i]) return fixed[i];
+    let best = null, bestN = 0, tie = false;
+    for (const t of teams) {
+      const n = b.players.filter(p => t.playerSet.has(norm(p.name))).length;
+      if (n > bestN) { best = t.id; bestN = n; tie = false; }
+      else if (n === bestN && n > 0) tie = true;
+    }
+    if (best && !tie) return best;
+    const byName = teams.filter(t => t.nameKeys.has(norm(b.rawName)));
+    return byName.length === 1 ? byName[0].id : null;
+  });
+  if (ids[0] && ids[0] === ids[1]) {
+    if (fixed && fixed[1] && !fixed[0]) ids[0] = null; else ids[1] = null;
+  }
+  return ids;
+}
+
+/* ============================== MODEL ============================== */
+const modelCache = {};
+function invalidate(id) { if (id) delete modelCache[id]; else Object.keys(modelCache).forEach(k => delete modelCache[k]); }
+
+function model(s) {
+  if (modelCache[s.id]) return modelCache[s.id];
+  const st = seasonStore(s), teams = teamsFor(s);
+  const byId = Object.fromEntries(teams.map(t => [t.id, t]));
+  const problems = [];
+  const mk = (text, phase, key) => {
+    const blocks = parseCSV(text);
+    if (!blocks) { problems.push(text); return null; }
+    const ids = resolveBlocks(teams, blocks, st.assign[hash(text.trim())]);
+    if (!ids[0] || !ids[1]) { problems.push(text); return null; }
+    const side = (b, id) => ({ id, rawName: b.rawName, total: b.total, players: b.players });
+    const g = { phase, key, text, h: hash(text.trim()), a: side(blocks[0], ids[0]), b: side(blocks[1], ids[1]) };
+    if (g.a.total === g.b.total) {
+      const o = (s.otWinners || []).find(o => phase === 'reg' && o.week === key && [g.a.id, g.b.id].includes(o.winner) && [g.a.id, g.b.id].includes(o.loser));
+      if (o) g.ot = o.winner;
+    }
+    return g;
+  };
+  const reg = [];
+  s.schedule.forEach((wk, i) => { if (!wk.bye) (st.weeks[i] || []).forEach(t => { const g = mk(t, 'reg', i); if (g) reg.push(g); }); });
+  const po = {};
+  s.playoffs.forEach(r => { po[r.key] = (st.playoffs[r.key] || []).map(t => mk(t, 'po', r.key)).filter(Boolean); });
+  const scheduledGames = s.schedule.reduce((n, w) => n + (w.bye ? 0 : w.matches.length), 0);
+  const m = { s, st, teams, byId, reg, po, problems, scheduledGames };
+  m.name = id => byId[id] ? byId[id].name : id;
+  modelCache[s.id] = m;
+  return m;
+}
+const anyPlayoffGames = m => Object.values(m.po).some(a => a.length);
+const regComplete = m => m.reg.length >= m.scheduledGames;
+
+/* ============================== STANDINGS ============================== */
+// +1 win, -1 loss, 0 tie for team id `t` in game g (ties decided in OT count as W/L).
+function sideResult(g, t) {
+  const x = g.a.id === t ? g.a : g.b, y = g.a.id === t ? g.b : g.a;
+  if (x.total !== y.total) return Math.sign(x.total - y.total);
+  return g.ot ? (g.ot === t ? 1 : -1) : 0;
+}
+function h2h(m, a, b) {
+  let d = 0;
+  for (const g of m.reg) {
+    if ((g.a.id === a && g.b.id === b) || (g.a.id === b && g.b.id === a)) d += sideResult(g, a);
+  }
+  return d;
+}
+// Order: win % → points per game → head-to-head → name.
+function standings(m) {
+  const T = {};
+  m.teams.forEach(t => T[t.id] = { id: t.id, w: 0, l: 0, t: 0, g: 0, pf: 0, pa: 0, log: [] });
+  for (const g of m.reg) for (const [x, y] of [[g.a, g.b], [g.b, g.a]]) {
+    const r = T[x.id]; if (!r) continue;
+    const sr = sideResult(g, x.id), res = sr > 0 ? 'W' : sr < 0 ? 'L' : 'T';
+    r.g++; r.pf += x.total; r.pa += y.total; r[res.toLowerCase()]++; r.log.push(res);
+  }
+  const arr = Object.values(T).map(r => ({ ...r, pct: r.g ? (r.w + 0.5 * r.t) / r.g : 0, ppg: r.g ? r.pf / r.g : 0, diff: r.pf - r.pa }));
+  arr.sort((a, b) => (b.pct - a.pct) || (b.ppg - a.ppg) || (-h2h(m, a.id, b.id)) || m.name(a.id).localeCompare(m.name(b.id)));
+  arr.forEach((r, i) => r.seed = i + 1);
+  return arr;
+}
+
+/* ============================== BRACKET ============================== */
+const outcome = g => { if (!g) return null; const r = sideResult(g, g.a.id); return r > 0 ? { w: g.a.id, l: g.b.id } : r < 0 ? { w: g.b.id, l: g.a.id } : null; };
+
+function slotGames(games, pairs) {
+  const out = pairs.map(() => null), left = [];
+  for (const g of games) {
+    const k = pairs.findIndex((p, i) => !out[i] && p && p[0] && p[1] && [p[0], p[1]].includes(g.a.id) && [p[0], p[1]].includes(g.b.id));
+    if (k >= 0) out[k] = g; else left.push(g);
+  }
+  for (const g of left) { const k = out.findIndex(x => !x); if (k >= 0) out[k] = g; }
+  return out;
+}
+
+function bracket(m) {
+  if (m.s.format === 'simple') {
+    // Older seasons with no recorded bracket: just list the playoff games.
+    const seeds = standings(m);
+    const seedOf = id => { const i = seeds.findIndex(x => x.id === id); return i >= 0 ? i + 1 : null; };
+    const rounds = Object.fromEntries(m.s.playoffs.map(r => { const gs = m.po[r.key] || []; return [r.key, { pairs: gs.map(g => [g.a.id, g.b.id]), games: gs, labels: gs.map((_, i) => 'Game ' + (i + 1)) }]; }));
+    return { seeds, final: true, seedOf, rounds, champion: m.s.champion || null, runnerUp: null, hosts: {} };
+  }
+  const seeds = standings(m);
+  const final = regComplete(m) || anyPlayoffGames(m);
+  const S = n => seeds[n - 1] ? seeds[n - 1].id : null;
+  const seedOf = id => { const i = seeds.findIndex(x => x.id === id); return i >= 0 ? i + 1 : null; };
+
+  const piPair = [S(8), S(9)];
+  const pi = slotGames(m.po.playin || [], [piPair])[0], piRes = outcome(pi);
+
+  const wcPairs = [[S(1), piRes ? piRes.w : null], [S(2), S(7)], [S(3), S(6)], [S(4), S(5)]];
+  const wc = slotGames(m.po.wildcard || [], wcPairs), wcRes = wc.map(outcome);
+  const wcDone = wcRes.every(Boolean);
+  let sfPairs = [[null, null], [null, null]], wcLosers = null;
+  if (wcDone) {
+    const ws = wcRes.map(r => r.w).sort((a, b) => (seedOf(a) ?? 99) - (seedOf(b) ?? 99));
+    sfPairs = [[ws[0], ws[3]], [ws[1], ws[2]]];
+    wcLosers = wcRes.map(r => r.l).sort((a, b) => (seedOf(b) ?? -1) - (seedOf(a) ?? -1));
+  }
+  const sf = slotGames(m.po.semis || [], sfPairs), sfRes = sf.map(outcome);
+  const chPair = sfRes.every(Boolean) ? [sfRes[0].w, sfRes[1].w] : [null, null];
+  const ch = slotGames(m.po.championship || [], [chPair])[0], chRes = outcome(ch);
+
+  return {
+    seeds, final, seedOf,
+    rounds: {
+      playin:       { pairs: [piPair], games: [pi], labels: ['(8) vs (9)'] },
+      wildcard:     { pairs: wcPairs, games: wc, labels: ['(1) vs Play-In winner', '(2) vs (7)', '(3) vs (6)', '(4) vs (5)'] },
+      semis:        { pairs: sfPairs, games: sf, labels: ['Top remaining seed vs lowest', 'Middle two seeds'] },
+      championship: { pairs: [chPair], games: [ch], labels: ['Championship'] },
+    },
+    champion: chRes ? chRes.w : null,
+    runnerUp: chRes ? chRes.l : null,
+    hosts: {
+      playin: S(1),
+      wildcard: piRes ? piRes.l : null,
+      semis: wcLosers ? wcLosers[0] : null,
+      championship: wcLosers ? wcLosers[1] : null,
+    },
+  };
+}
+const HOST_RULE = { playin: '1 seed', wildcard: 'Play-In loser', semis: 'lowest-seeded Wild Card loser', championship: '2nd-lowest-seeded Wild Card loser' };
+
+/* ============================== PLAYERS ============================== */
+function weekAwards(players) {
+  if (!players.length) return { mvp: [], aow: [], max: null, min: null };
+  const max = Math.max(...players.map(p => p.score)), min = Math.min(...players.map(p => p.score));
+  const names = sc => [...new Set(players.filter(p => p.score === sc).map(p => p.name))].sort((a, b) => a.localeCompare(b));
+  return { mvp: names(max), aow: min !== max ? names(min) : [], max, min };
+}
+const playersIn = games => games.flatMap(g => [...g.a.players.map(p => ({ ...p, team: g.a.id })), ...g.b.players.map(p => ({ ...p, team: g.b.id }))]);
+
+// Every individual score in a season: { season, phase, key, name, score, team }
+function performances(s) {
+  const m = model(s), out = [];
+  for (const g of m.reg) for (const p of playersIn([g])) out.push({ season: s.id, phase: 'reg', key: g.key, ...p });
+  for (const [key, games] of Object.entries(m.po)) for (const p of playersIn(games)) out.push({ season: s.id, phase: 'po', key, ...p });
+  return out;
+}
+// Weekly MVP / Ass of the Week tally (regular-season weeks only).
+function awardTally(s) {
+  const m = model(s), tally = {};
+  const byWeek = {};
+  m.reg.forEach(g => (byWeek[g.key] = byWeek[g.key] || []).push(g));
+  for (const games of Object.values(byWeek)) {
+    const { mvp, aow } = weekAwards(playersIn(games));
+    mvp.forEach(n => { const k = norm(n); (tally[k] = tally[k] || { mvp: 0, aow: 0 }).mvp++; });
+    aow.forEach(n => { const k = norm(n); (tally[k] = tally[k] || { mvp: 0, aow: 0 }).aow++; });
+  }
+  return tally;
+}
+function aggregate(recs) {
+  const P = {};
+  for (const r of recs) {
+    const k = norm(r.name);
+    const p = P[k] = P[k] || { key: k, name: r.name, scores: [], reg: [], po: [], byKey: {}, bySeason: {}, last: null };
+    p.scores.push(r.score); p[r.phase].push(r.score);
+    p.byKey[r.phase + ':' + r.key] = r.score;
+    (p.bySeason[r.season] = p.bySeason[r.season] || []).push(r.score);
+    p.last = r;
+  }
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  return Object.values(P).map(p => ({
+    ...p,
+    gp: p.scores.length, total: p.scores.reduce((x, y) => x + y, 0), ppg: avg(p.scores),
+    regPpg: avg(p.reg), poPpg: avg(p.po), regGp: p.reg.length, poGp: p.po.length,
+    best: Math.max(...p.scores), seasons: Object.keys(p.bySeason).length,
+    seasonPpg: Object.fromEntries(Object.entries(p.bySeason).map(([k, v]) => [k, avg(v)])),
+  }));
+}
+
+/* ============================== UI STATE ============================== */
+const ui = { screen: 'dash', season: SEASONS[0].id, tab: 'standings', week: null, statView: 'reg', minGp: 1, sort: { key: 'ppg', dir: -1 } };
+let charts = [];
+const cur = () => seasonById(ui.season);
+
+function toast(msg, warn) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (warn ? ' warn' : '');
+  clearTimeout(t._h); t._h = setTimeout(() => t.className = 'toast' + (warn ? ' warn' : ''), warn ? 6000 : 3500);
+}
+let modalType = null;
+function openModal(html, type) { modalType = type || null; document.getElementById('modal').innerHTML = html; document.getElementById('modal-bg').classList.add('show'); const f = document.querySelector('#modal input[type=text], #modal select'); if (f) f.focus(); }
+function closeModal(fromSave) {
+  document.getElementById('modal-bg').classList.remove('show');
+  if (modalType === 'pending' && !fromSave && pendingQueue.length) { const n = pendingQueue.length; pendingQueue.length = 0; toast(`${n} file${n > 1 ? 's' : ''} skipped`); }
+  modalType = null;
+}
+
+function defaultWeek(m) {
+  const s = m.s;
+  const loaded = i => m.reg.filter(g => g.key === i).length;
+  if (anyPlayoffGames(m) || regComplete(m)) {
+    const withData = s.playoffs.filter(r => m.po[r.key].length);
+    const next = s.playoffs.find(r => !m.po[r.key].length);
+    if (s.editable && next) return 'p:' + next.key;
+    return 'p:' + (withData.length ? withData[withData.length - 1].key : s.playoffs[0].key);
+  }
+  const open = s.schedule.findIndex(w => !w.bye && loaded(s.schedule.indexOf(w)) < w.matches.length);
+  return 'w:' + (open >= 0 ? open : s.schedule.findIndex(w => !w.bye));
+}
+
+/* ============================== TOP LEVEL ============================== */
+function render() {
+  charts.forEach(c => c.destroy()); charts = [];
+  const app = document.getElementById('app');
+  if (ui.screen === 'seasons') { app.innerHTML = renderSeasons(); return; }
+  const s = cur(), m = model(s);
+  if (!ui.week) ui.week = defaultWeek(m);
+  const tabs = [['standings', 'Standings'], ['results', 'Week Results'], ['players', 'Player Stats'], ['teams', 'Teams'], ['charts', 'Charts'], ['playoffs', '🏆 Playoffs'], ['rafters', '🏛️ The Rafters']];
+  const total = m.reg.length + Object.values(m.po).reduce((n, a) => n + a.length, 0);
+  const champ = bracket(m).champion;
+  app.innerHTML = `
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>⚡ SAE Trivia League</h1>
+      <span class="season-chip">${esc(s.label)} · ${s.editable ? '<span class="live">Live</span>' : '<span class="arch">Final</span>'}</span>
+    </div>
+    <div class="topbar-right">
+      <span class="week-badge">${total} game${total !== 1 ? 's' : ''} loaded</span>
+      <button class="btn" data-act="seasons">All Seasons ▸</button>
+    </div>
+  </div>
+  <div class="main">
+    ${!s.editable && champ ? `<div class="note">🏆 <strong>${esc(m.name(champ))}</strong> won ${esc(s.label)}. This season is archived — results are read-only.</div>` : ''}
+    ${m.problems.length ? `<div class="note" style="border-color:var(--lose)">⚠️ ${m.problems.length} saved game${m.problems.length > 1 ? 's' : ''} couldn't be matched to teams and ${m.problems.length > 1 ? 'are' : 'is'} hidden. Re-upload ${m.problems.length > 1 ? 'them' : 'it'} to assign teams.</div>` : ''}
+    <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${ui.tab === k ? 'active' : ''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
+    <div id="tab-body">${renderTab(m)}</div>
+  </div>
+  ${s.editable ? `<div class="data-bar"><span class="grow">Scores and team names are saved in this browser. Back up after each week so nothing is lost if browser data gets cleared.</span>
+    <button class="btn ghost" data-act="backup">⬇ Backup</button>
+    <button class="btn ghost" data-act="restore">⬆ Restore</button>
+    <button class="btn danger" data-act="clear">Clear scores</button></div>` : ''}`;
+  if (ui.tab === 'charts') drawCharts(m);
+}
+function renderTab(m) {
+  switch (ui.tab) {
+    case 'standings': return renderStandings(m);
+    case 'results': return renderResults(m);
+    case 'players': return renderPlayers(m);
+    case 'teams': return renderTeams(m);
+    case 'charts': return renderChartsShell(m);
+    case 'rafters': return renderRafters(m);
+    case 'playoffs': return renderPlayoffs(m);
+  }
+  return '';
+}
+
+/* ============================== SEASON PICKER ============================== */
+function renderSeasons() {
+  const cards = SEASONS.map(s => {
+    const m = model(s), b = bracket(m), st = standings(m);
+    const played = m.reg.length;
+    const leader = played ? st[0] : null;
+    const status = s.editable
+      ? (b.champion ? 'Complete' : played ? `In progress · ${played}/${m.scheduledGames} regular-season games` : 'Starts ' + (s.schedule.find(w => !w.bye) || {}).date)
+      : 'Final';
+    return `<button class="season-card" data-act="open-season" data-v="${s.id}">
+      <span class="status" style="color:${s.editable ? 'var(--win)' : 'var(--muted)'}">${s.editable ? '● Current season' : 'Archived'}</span>
+      <span class="lbl">${esc(s.label)}</span>
+      <span class="row"><span>Dates</span><b>${esc(s.dates)}</b></span>
+      <span class="row"><span>Status</span><b>${esc(status)}</b></span>
+      ${b.champion ? `<span class="row"><span>Champion</span><b>🏆 ${esc(m.name(b.champion))}</b></span>` : leader ? `<span class="row"><span>Leader</span><b>${esc(m.name(leader.id))} (${leader.w}-${leader.l})</b></span>` : ''}
+      <span class="row"><span>Teams</span><b>${s.teams.length}</b></span>
+    </button>`;
+  }).join('') + PAST_SEASONS_WITHOUT_DATA.map(p => `<div class="season-card empty"><span class="status" style="color:var(--muted)">Archived</span><span class="lbl">${esc(p.label)}</span>${p.dates ? `<span class="row"><span>Dates</span><b>${esc(p.dates)}</b></span>` : ''}${p.champion ? `<span class="row"><span>Champion</span><b>🏆 ${esc(p.champion)}</b></span>` : ''}<span class="row"><span>${esc(p.note)}</span></span></div>`).join('');
+  return `
+  <div class="topbar"><div class="topbar-left"><h1>⚡ SAE Trivia League</h1></div>
+    <div class="topbar-right"><button class="btn" data-act="open-season" data-v="${SEASONS[0].id}">← Back to ${esc(SEASONS[0].label)}</button></div></div>
+  <div class="seasons-head"><h2>All Seasons</h2><p>Pick a season to see its standings, results, player stats and bracket. Career stats on the Player Stats tab combine every season.</p></div>
+  <div class="seasons-grid">${cards}</div>`;
+}
+
+/* ============================== STANDINGS ============================== */
+function renderStandings(m) {
+  const st = standings(m), s = m.s;
+  const anyTies = st.some(r => r.t);
+  let strip = '';
+  if (m.reg.length) {
+    let hi = null;
+    for (const g of m.reg) for (const x of [g.a, g.b]) if (!hi || x.total > hi.total) hi = { ...x, week: s.schedule[g.key].label };
+    const scores = m.reg.flatMap(g => [g.a.total, g.b.total]);
+    const top = aggregate(performances(s).filter(r => r.phase === 'reg')).sort((a, b) => b.ppg - a.ppg)[0];
+    strip = `<div class="stats-strip">
+      <div class="stat-card"><div class="stat-label">Games Played</div><div class="stat-val">${m.reg.length}</div><div class="stat-sub">of ${m.scheduledGames} regular season</div></div>
+      <div class="stat-card"><div class="stat-label">Highest Team Score</div><div class="stat-val">${fmtScore(hi.total)}</div><div class="stat-sub">${esc(m.name(hi.id))} · ${esc(hi.week)}</div></div>
+      <div class="stat-card"><div class="stat-label">Top Scorer (PPG)</div><div class="stat-val">${top ? fmt(top.ppg) : '—'}</div><div class="stat-sub">${top ? esc(top.name) : '—'}</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Team Score</div><div class="stat-val">${fmt(scores.reduce((a, b) => a + b, 0) / scores.length, 1)}</div><div class="stat-sub">per game</div></div>
+    </div>`;
+  }
+  const rc = ['gold', 'silver', 'bronze'];
+  const simple = s.format === 'simple';
+  const rows = st.map((r, i) => `<tr class="${i === 6 && !simple ? 'seed-line' : ''}">
+      <td><span class="rank-num ${r.g ? rc[i] || '' : ''}">${i + 1}</span></td>
+      <td><div class="team-name-cell">${esc(m.name(r.id))}</div><div class="sub">${s.hideCaptains ? m.byId[r.id].players.map(esc).join(', ') : esc(m.byId[r.id].captain) + ' (C)'}</div></td>
+      <td class="num">${r.w}-${r.l}${anyTies ? '-' + r.t : ''}</td>
+      <td class="num">${r.g ? pctStr(r.pct) : '.000'}</td>
+      <td class="num">${fmtScore(r.pf)}</td>
+      <td class="num" style="color:var(--muted)">${fmtScore(r.pa)}</td>
+      <td class="num" style="color:${r.diff > 0 ? 'var(--win)' : r.diff < 0 ? 'var(--lose)' : 'var(--muted)'}">${r.diff > 0 ? '+' : ''}${fmtScore(r.diff)}</td>
+      <td class="num accent">${r.g ? fmt(r.ppg, 1) : '—'}</td>
+      <td>${r.log.slice(-3).map(x => `<span class="badge badge-${x}">${x}</span>`).join(' ')}</td>
+    </tr>`).join('');
+  let next = '';
+  if (s.editable) {
+    const wi = s.schedule.findIndex((w, i) => !w.bye && m.reg.filter(g => g.key === i).length < w.matches.length);
+    if (wi >= 0) {
+      const w = s.schedule[wi];
+      next = `<div class="section-title" style="margin-top:32px">Up Next · ${esc(w.label)} — ${esc(w.date)}</div>
+      <div class="matches-row">${w.matches.map(([a, b]) => {
+        const g = findGame(m.reg.filter(x => x.key === wi), a, b);
+        return g ? matchCard(m, g, 'Final', [a, b]) : pendingCard(m, [a, b], 'Scheduled');
+      }).join('')}</div>
+      <div class="note">🏠 <strong>${esc(m.name(w.host))}</strong> hosts (and has the week off).</div>`;
+    }
+  }
+  return strip + `<div class="section-title">Team Standings</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>#</th><th>Team</th><th class="r">${anyTies ? 'W-L-T' : 'W-L'}</th><th class="r">Pct</th><th class="r">PF</th><th class="r">PA</th><th class="r">Diff</th><th class="r">PPG</th><th>Last 3</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    ${simple ? '' : `<p class="sub" style="margin-top:10px">All 9 teams make the playoffs: seeds 1–7 go straight to the Wild Card, seeds 8 & 9 meet in the Play-In. Ties broken by PPG, then head-to-head.</p>`}
+    ${next}`;
+}
+
+/* ============================== MATCH CARDS ============================== */
+function findGame(games, a, b) { return games.find(g => (g.a.id === a && g.b.id === b) || (g.a.id === b && g.b.id === a)); }
+function playerList(players) {
+  if (!players.length) return '<span class="sub">Team total only</span>';
+  const top = Math.max(...players.map(p => p.score));
+  return players.map(p => `<div class="match-player-row"><span>${esc(p.name)}</span><span class="match-player-score ${p.score === top ? 'top' : ''}">${fmtScore(p.score)}</span></div>`).join('');
+}
+function matchCard(m, g, header, order, seedOf) {
+  let [x, y] = [g.a, g.b];
+  if (order && order[0] && g.b.id === order[0]) [x, y] = [g.b, g.a];
+  const sr = sideResult(g, x.id), win = sr > 0 ? 0 : sr < 0 ? 1 : -1;
+  if (g.ot) header += ' · OT';
+  const sd = id => seedOf && seedOf(id) ? `<span class="seed">(${seedOf(id)})</span>` : '';
+  const rm = m.s.editable ? `<button class="link" data-act="remove" data-h="${g.h}" data-phase="${g.phase}" data-key="${g.key}">remove</button>` : '';
+  return `<div class="match-card">
+    <div class="match-card-header"><span>${esc(header)}</span>${rm}</div>
+    <div class="match-scoreline">
+      <span class="match-team-name ${win === 0 ? 'winner' : ''}">${sd(x.id)}${esc(m.name(x.id))}</span>
+      <span class="match-big-score">${fmtScore(x.total)}<span class="match-sep">–</span>${fmtScore(y.total)}</span>
+      <span class="match-team-name right ${win === 1 ? 'winner' : ''}">${esc(m.name(y.id))}${sd(y.id) ? ' ' + sd(y.id) : ''}</span>
+    </div>
+    <div class="match-cols"><div class="match-players">${playerList(x.players)}</div><div class="match-players">${playerList(y.players)}</div></div>
+  </div>`;
+}
+function pendingCard(m, pair, header, seedOf, waitText) {
+  const nm = id => id ? `${seedOf && seedOf(id) ? `<span class="seed">(${seedOf(id)})</span>` : ''}${esc(m.name(id))}` : '<span style="color:var(--muted)">TBD</span>';
+  return `<div class="match-card pending"><div class="match-card-header"><span>${esc(header)}</span></div>
+    <div class="vs-line">${nm(pair[0])}<span class="vs">vs</span>${nm(pair[1])}<span class="wait">${esc(waitText || 'Awaiting result')}</span></div></div>`;
+}
+
+/* ============================== WEEK RESULTS ============================== */
+function renderResults(m) {
+  const s = m.s;
+  const b = bracket(m);
+  const btns = s.schedule.map((w, i) => {
+    const has = m.reg.some(g => g.key === i);
+    return `<button class="week-tab-btn ${w.bye ? 'bye' : ''} ${ui.week === 'w:' + i ? 'active' : ''}" data-act="week" data-v="w:${i}">${w.bye ? (w.note || '').split(' ')[0] + ' Bye' : esc(w.label)}<small>${esc(w.date)}</small>${has ? '<span class="dot"></span>' : ''}</button>`;
+  }).join('') + s.playoffs.map(r => `<button class="week-tab-btn po ${ui.week === 'p:' + r.key ? 'active' : ''}" data-act="week" data-v="p:${r.key}">🏆 ${esc(r.label)}<small>${esc(r.date)}</small>${m.po[r.key].length ? '<span class="dot"></span>' : ''}</button>`).join('');
+  const [kind, key] = ui.week.split(':');
+  const body = kind === 'w' ? renderWeek(m, +key) : renderRound(m, b, key);
+  return `<div class="week-tabs-bar">${btns}</div>${body}`;
+}
+function uploadArea(m, title, sub, attr) {
+  if (!m.s.editable) return '';
+  const id = 'up-' + attr.replace(/[^a-z0-9]/gi, '');
+  return `<div class="upload-area"><div class="upload-info"><strong>${title}</strong>${sub}</div>
+    <label class="upload-btn" for="${id}">+ Upload CSVs</label><input type="file" id="${id}" accept=".csv,text/csv" multiple style="display:none" data-up="${attr}"></div>`;
+}
+function rankingsBlock(players, withAwards) {
+  if (!players.length) return '';
+  const sorted = [...players].sort((a, b) => b.score - a.score);
+  const aw = weekAwards(players);
+  const awards = withAwards ? `<div class="award-cards">
+      <div class="award-card mvp"><div class="award-icon">👑</div><div><div class="award-label">MVP${aw.mvp.length > 1 ? 's' : ''} of the Week</div><div class="award-name">${aw.mvp.map(esc).join(', ')}</div><div class="award-score">${fmtScore(aw.max)} points</div></div></div>
+      <div class="award-card aow"><div class="award-icon">🍑</div><div><div class="award-label">Ass${aw.aow.length > 1 ? 'es' : ''} of the Week</div><div class="award-name">${aw.aow.map(esc).join(', ') || '—'}</div><div class="award-score">${aw.aow.length ? fmtScore(aw.min) + ' points' : ''}</div></div></div>
+    </div>` : '';
+  const icons = ['🥇', '🥈', '🥉'];
+  const rows = sorted.map((p, i) => {
+    const mvp = withAwards && p.score === aw.max, aow = withAwards && aw.aow.length && p.score === aw.min;
+    const col = mvp ? 'var(--accent)' : aow ? 'var(--lose)' : 'var(--text)';
+    return `<tr><td style="text-align:center;width:40px">${icons[i] || `<span style="color:var(--muted)">${i + 1}</span>`}</td>
+      <td style="font-weight:${mvp ? 800 : 600};color:${col}">${esc(p.name)}${mvp ? ' 👑' : aow ? ' 🍑' : ''}</td>
+      <td class="sub" style="margin:0">${esc(p.teamName)}</td>
+      <td class="r" style="font-size:1.05rem;font-weight:800;color:${col}">${fmtScore(p.score)}</td></tr>`;
+  }).join('');
+  return awards + `<div class="section-title">Individual Performance Rankings</div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="text-align:center">#</th><th>Player</th><th>Team</th><th class="r">Score</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function renderWeek(m, i) {
+  const w = m.s.schedule[i];
+  if (w.bye) return `<div class="bye-card"><div class="big">${(w.note || '🎉').split(' ')[0]}</div><h3>${esc(w.label)} — ${esc(w.date)}</h3><p>${esc((w.note || 'Bye week').split(' ').slice(1).join(' '))}</p></div>`;
+  const games = m.reg.filter(g => g.key === i);
+  const used = new Set();
+  const cards = w.matches.map(([a, b], k) => {
+    const g = findGame(games, a, b);
+    if (g) { used.add(g); return matchCard(m, g, 'Match ' + (k + 1), [a, b]); }
+    return pendingCard(m, [a, b], 'Match ' + (k + 1));
+  });
+  games.filter(g => !used.has(g)).forEach(g => cards.push(matchCard(m, g, '⚠️ Not on this week\'s schedule')));
+  const players = playersIn(games).map(p => ({ ...p, teamName: m.name(p.team) }));
+  const hostTxt = w.host ? `🏠 ${esc(m.name(w.host))} hosting (bye)` : w.off ? `💤 ${esc(m.name(w.off))} off` : '';
+  const sub = `<span>${games.length}/${w.matches.length} games loaded · ${hostTxt}</span>`;
+  return uploadArea(m, `${esc(w.label)} — ${esc(w.date)}`, sub, 'w:' + i)
+    + (m.s.editable ? '' : `<div class="note">${esc(w.label)} — ${esc(w.date)}${w.host ? ` · 🏠 ${esc(m.name(w.host))} hosted` : w.off ? ` · 💤 ${esc(m.name(w.off))} had the week off` : ''}</div>`)
+    + `<div class="matches-row">${cards.join('')}</div>` + rankingsBlock(players, true);
+}
+function renderRound(m, b, key) {
+  const r = m.s.playoffs.find(x => x.key === key), R = b.rounds[key];
+  const cards = R.pairs.map((pair, k) => {
+    const g = R.games[k], label = (key === 'championship' ? '🏆 ' : '') + R.labels[k];
+    if (g) return matchCard(m, g, label, pair, b.seedOf);
+    const known = pair[0] && pair[1];
+    return pendingCard(m, pair, label, b.seedOf, !b.final ? 'Projected from current standings' : known ? 'Awaiting result' : 'Waiting on earlier round');
+  }).join('');
+  const host = b.hosts[key];
+  const players = playersIn(m.po[key]).map(p => ({ ...p, teamName: m.name(p.team) }));
+  const sub = `<span>${m.po[key].length}/${R.pairs.length} games loaded · upload in any order, games are matched to the bracket by team</span>`;
+  return uploadArea(m, `${esc(r.label)} — ${esc(r.date)}`, sub, 'p:' + key)
+    + (!b.final ? `<div class="note">Seeding isn't final until the regular season is complete — matchups below are projections.</div>` : '')
+    + `<div class="matches-row">${cards}</div>`
+    + (m.s.format === 'simple' ? '' : `<div class="note">🏠 Host: <strong>${host ? esc(m.name(host)) : 'TBD'}</strong> (${HOST_RULE[key]})${key === 'playin' ? ' — seeds 2–7 also have the week off.' : ''}</div>`)
+    + ((key === 'championship' || m.s.format === 'simple') && b.champion ? `<div class="champion-banner">🏆 ${esc(m.name(b.champion))} — ${esc(m.s.label)} Champions!</div>` : '')
+    + rankingsBlock(players, false);
+}
+
+/* ============================== PLAYER STATS ============================== */
+const VIEWS = [
+  ['reg', 'Regular Season', 'This season, regular-season games only.'],
+  ['po', 'Playoffs', 'This season, playoff games only.'],
+  ['full', 'Full Season', 'This season, regular season + playoffs combined.'],
+  ['career', 'Career', 'Every season on record, regular season + playoffs.'],
+];
+function titlesByPlayer() {
+  const t = {};
+  for (const s of SEASONS) {
+    const m = model(s), c = bracket(m).champion;
+    if (!c) continue;
+    const champPlayers = new Set(m.byId[c].players.map(norm));
+    (m.po.championship || []).forEach(g => [g.a, g.b].filter(x => x.id === c).forEach(x => x.players.forEach(p => champPlayers.add(norm(p.name)))));
+    champPlayers.forEach(k => (t[k] = t[k] || []).push(s.label));
+  }
+  for (const r of EXTRA_RINGS) r.players.forEach(n => { const k = norm(n); (t[k] = t[k] || []); if (!t[k].includes(r.season)) t[k].push(r.season); });
+  return t;
+}
+function renderPlayers(m) {
+  const s = m.s, v = ui.statView;
+  const scoped = v === 'career' ? SEASONS.flatMap(performances) : performances(s).filter(r => v === 'full' || r.phase === v);
+  let rows = aggregate(scoped);
+  const hidden = rows.filter(r => r.gp < ui.minGp).length;
+  rows = rows.filter(r => r.gp >= ui.minGp);
+  const tally = {};
+  for (const ss of (v === 'career' ? SEASONS : [s])) for (const [k, c] of Object.entries(awardTally(ss))) { tally[k] = tally[k] || { mvp: 0, aow: 0 }; tally[k].mvp += c.mvp; tally[k].aow += c.aow; }
+  const titles = titlesByPlayer();
+  const current = SEASONS[0], curModel = model(current);
+  rows.forEach(r => {
+    r.mvp = (tally[r.key] || {}).mvp || 0; r.aow = (tally[r.key] || {}).aow || 0;
+    r.ringSeasons = (titles[r.key] || []).slice().sort(); r.titles = r.ringSeasons.length;
+    if (v === 'career') {
+      const t = curModel.teams.find(t => t.playerSet.has(r.key));
+      r.team = t ? t.name : model(seasonById(r.last.season)).name(r.last.team);
+    } else r.team = m.name(r.last.team);
+  });
+
+  const C = [];
+  const col = (key, label, get, f, cls) => C.push({ key, label, get, f: f || (x => x ?? '—'), cls: cls || 'r' });
+  if (v === 'career') col('seasons', 'Seasons', r => r.seasons);
+  col('gp', 'GP', r => r.gp);
+  col('ppg', 'PPG', r => r.ppg, x => `<b class="accent">${fmt(x)}</b>`);
+  if (v === 'full' || v === 'career') { col('regPpg', 'Reg PPG', r => r.regPpg, x => fmt(x)); col('poPpg', 'Playoff PPG', r => r.poPpg, x => fmt(x)); }
+  col('best', 'Best', r => r.best, x => fmtScore(x));
+  col('total', 'Total', r => r.total, x => fmt(x));
+  if (v !== 'po') { col('mvp', '👑 MVP', r => r.mvp); col('aow', '🍑 AOW', r => r.aow); }
+  if (v === 'career') col('titles', '💍 Rings', r => r.titles, x => x ? (x <= 3 ? '💍'.repeat(x) : '💍x' + x) : '—');
+
+  let extra = [];
+  if (v === 'reg') extra = gameWeeks(s).map(w => ({ label: w.label.replace('Week ', 'W'), k: 'reg:' + w.idx }));
+  if (v === 'po') extra = s.playoffs.map(r => ({ label: r.label, k: 'po:' + r.key }));
+  if (v === 'career') extra = [...SEASONS].reverse().map(ss => ({ label: ss.label.replace('Season ', 'S') + ' PPG', season: ss.id }));
+
+  const sc = C.find(c => c.key === ui.sort.key) || C.find(c => c.key === 'ppg');
+  const dir = ui.sort.dir;
+  if (ui.sort.key === 'name' || ui.sort.key === 'team') rows.sort((a, b) => dir * String(a[ui.sort.key]).localeCompare(String(b[ui.sort.key])));
+  else rows.sort((a, b) => { const x = sc.get(a), y = sc.get(b); if (x == null) return 1; if (y == null) return -1; return dir * (x - y) || (b.ppg - a.ppg); });
+
+  const seg = `<div class="seg">${VIEWS.map(([k, l]) => `<button class="${v === k ? 'on' : ''}" data-act="view" data-v="${k}">${l}</button>`).join('')}</div>
+    <label class="sub" style="margin-left:12px">Min games <select data-act-change="mingp" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-family:inherit">${[1, 2, 3, 5, 8].map(n => `<option value="${n}" ${ui.minGp === n ? 'selected' : ''}>${n === 1 ? 'Any' : n + '+'}</option>`).join('')}</select></label>
+    <p class="view-desc">${VIEWS.find(x => x[0] === v)[2]}${hidden ? ` ${hidden} player${hidden > 1 ? 's' : ''} under ${ui.minGp} games hidden.` : ''}${v !== 'po' ? ' 👑/🍑 count weekly MVP and Ass of the Week awards (regular season).' : ''} Click a column to sort.</p>`;
+  if (!rows.length) return seg + `<div class="empty-state"><div class="big-icon">🎯</div><h3>No ${v === 'po' ? 'playoff ' : ''}player data yet</h3><p>${s.editable ? 'Upload game CSVs on the Week Results tab.' : 'Nothing recorded for this view.'}</p></div>`;
+
+  const th = (key, label, cls = 'r') => `<th class="${cls} sortable ${ui.sort.key === key ? 'sorted' : ''}" data-act="sort" data-v="${key}">${label}${ui.sort.key === key ? (dir < 0 ? ' ▾' : ' ▴') : ''}</th>`;
+  const head = `<th>#</th>${th('name', 'Player', '')}${th('team', v === 'career' ? 'Current Team' : 'Team', '')}${C.map(c => th(c.key, c.label, c.cls)).join('')}${extra.map(e => `<th class="wk">${esc(e.label)}</th>`).join('')}`;
+  const rc = ['gold', 'silver', 'bronze'];
+  const body = rows.map((r, i) => {
+    const ex = extra.map(e => {
+      const val = e.season ? r.seasonPpg[e.season] : r.byKey[e.k];
+      if (val == null) return '<td class="wk blank">—</td>';
+      const best = !e.season && val === r.best && r.gp > 1;
+      return `<td class="wk ${best ? 'best' : ''}">${e.season ? fmt(val) : fmtScore(val)}</td>`;
+    }).join('');
+    return `<tr><td><span class="rank-num ${rc[i] || ''}">${i + 1}</span></td><td style="font-weight:700">${esc(r.name)}</td><td style="color:var(--muted)">${esc(r.team)}</td>
+      ${C.map(c => `<td class="${c.cls}">${c.f(c.get(r))}</td>`).join('')}${ex}</tr>`;
+  }).join('');
+  return seg + `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/* ============================== TEAMS ============================== */
+function renderTeams(m) {
+  const st = standings(m);
+  const rec = Object.fromEntries(st.map(r => [r.id, r]));
+  const cards = m.teams.map(t => {
+    const r = rec[t.id];
+    const pl = t.players.map(p => `<div class="match-player-row"><span>${esc(p)}${p === t.captain && !m.s.hideCaptains ? '<span class="cap">(C)</span>' : ''}</span></div>`).join('');
+    return `<div class="team-card">
+      <div class="team-card-head"><div><div class="nm">${esc(t.name)}</div>${t.history.length ? `<div class="formerly">Formerly ${t.history.map(esc).join(', ')}</div>` : ''}</div>
+        ${m.s.editable ? `<button class="btn ghost" data-act="rename" data-v="${t.id}">✏️ Rename</button>` : ''}</div>
+      <div class="team-card-body">${pl}</div>
+      <div class="team-card-foot">${r && r.g ? `${r.w}-${r.l}${r.t ? '-' + r.t : ''} · ${fmt(r.ppg, 1)} PPG · seed ${r.seed}` : 'No games yet'}${m.s.editable ? (() => { const h = m.s.schedule.find(w => w.host === t.id); return h ? ` · hosts ${esc(h.label)} (${esc(h.date)})` : ''; })() : ''}</div>
+    </div>`;
+  }).join('');
+  return (m.s.editable ? `<div class="note">✏️ <strong>Changing a team name?</strong> Hit Rename. The new name shows up everywhere right away, and CSVs that still use an old name keep loading because the dashboard matches teams by their players.</div>` : '')
+    + `<div class="teams-grid">${cards}</div>`;
+}
+function openRename(id) {
+  const t = teamsFor(cur()).find(x => x.id === id);
+  openModal(`<h3>Rename team</h3><p>Captain: ${esc(t.captain)}. The old name is kept so CSVs that still use it keep loading.</p>
+    <label class="fl" for="rn-input">Team name</label><input type="text" id="rn-input" value="${esc(t.name)}" maxlength="60">
+    ${t.history.length ? `<p style="margin-top:10px">Previous names: ${t.history.map(esc).join(', ')}</p>` : ''}
+    <div class="actions"><button class="btn ghost" data-act="close">Cancel</button><button class="btn primary" data-act="rename-save" data-v="${id}">Save name</button></div>`);
+}
+function saveRename(id) {
+  const s = cur(), st = seasonStore(s), t = teamsFor(s).find(x => x.id === id);
+  const nn = document.getElementById('rn-input').value.trim().replace(/\s+/g, ' ');
+  if (!nn) { toast('Name can\'t be empty', true); return; }
+  if (nn === t.name) { closeModal(); return; }
+  const clash = teamsFor(s).find(x => x.id !== id && norm(x.name) === norm(nn));
+  if (clash) { toast(`${clash.name} already uses that name`, true); return; }
+  const ed = st.teamEdits[id] = st.teamEdits[id] || {};
+  ed.history = [...new Set([...(ed.history || []), t.name])].filter(n => n !== nn);
+  ed.name = nn;
+  saveStore(); invalidate(s.id); closeModal(); render();
+  toast(`Renamed to ${nn}`);
+}
+
+/* ============================== CHARTS ============================== */
+function renderChartsShell(m) {
+  if (!m.reg.length) return `<div class="empty-state"><div class="big-icon">📊</div><h3>No data to chart yet</h3><p>Charts fill in once regular-season games are loaded.</p></div>`;
+  if (!window.Chart) return `<div class="empty-state"><div class="big-icon">📊</div><h3>Charts need an internet connection</h3><p>The chart library loads from the web. Everything else works offline.</p></div>`;
+  const nP = Math.min(12, aggregate(performances(m.s).filter(r => r.phase === 'reg')).length);
+  const nA = Math.min(12, Object.keys(awardTally(m.s)).length);
+  const box = (id, title, h) => `<div class="chart-wrap"><div class="chart-title">${title}</div><div style="position:relative;height:${h}px"><canvas id="${id}"></canvas></div></div>`;
+  return box('c-wl', 'Team record — wins vs losses', 280) + box('c-pf', 'Points for — regular season', 280)
+    + box('c-ppg', 'Top players — points per game (regular season)', Math.max(300, nP * 34 + 60))
+    + (nA ? box('c-aw', 'MVPs &amp; Asses of the Week — season tally', Math.max(300, nA * 34 + 60)) : '')
+    + box('c-trend', 'Team scores — week by week', 300);
+}
+function drawCharts(m) {
+  if (!window.Chart || !m.reg.length) return;
+  const COLORS = ['#ffcc00', '#ff9800', '#f44336', '#e91e63', '#9c27b0', '#3f51b5', '#2196f3', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39'];
+  const tick = { color: 'rgba(255,255,255,0.65)' }, grid = { color: 'rgba(255,255,255,0.07)' };
+  const base = (extra = {}) => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { ticks: tick, grid }, y: { ticks: tick, grid } }, ...extra });
+  const st = standings(m), labels = st.map(r => m.name(r.id));
+  const mk = (id, cfg) => { const el = document.getElementById(id); if (el) charts.push(new Chart(el, cfg)); };
+  mk('c-wl', { type: 'bar', data: { labels, datasets: [{ label: 'Wins', data: st.map(r => r.w), backgroundColor: '#00c853', borderRadius: 4 }, { label: 'Losses', data: st.map(r => r.l), backgroundColor: '#ff4444', borderRadius: 4 }] }, options: base() });
+  mk('c-pf', { type: 'bar', data: { labels, datasets: [{ label: 'PF', data: st.map(r => r.pf), backgroundColor: '#ffcc00', borderRadius: 4 }] }, options: base({ plugins: { legend: { display: false } } }) });
+  const ps = aggregate(performances(m.s).filter(r => r.phase === 'reg')).sort((a, b) => b.ppg - a.ppg).slice(0, 12);
+  mk('c-ppg', { type: 'bar', data: { labels: ps.map(p => p.name), datasets: [{ label: 'PPG', data: ps.map(p => +p.ppg.toFixed(2)), backgroundColor: ps.map((_, i) => COLORS[i % 12]), borderRadius: 4 }] }, options: base({ indexAxis: 'y', plugins: { legend: { display: false } } }) });
+  const tally = awardTally(m.s), names = {};
+  performances(m.s).forEach(r => names[norm(r.name)] = r.name);
+  const aw = Object.entries(tally).map(([k, c]) => ({ name: names[k] || k, ...c })).sort((a, b) => (b.mvp + b.aow) - (a.mvp + a.aow) || b.mvp - a.mvp).slice(0, 12);
+  mk('c-aw', { type: 'bar', data: { labels: aw.map(a => a.name), datasets: [{ label: '👑 MVP', data: aw.map(a => a.mvp), backgroundColor: '#ffcc00', borderRadius: 4 }, { label: '🍑 Ass of the Week', data: aw.map(a => a.aow), backgroundColor: '#ff4444', borderRadius: 4 }] }, options: base({ indexAxis: 'y', scales: { x: { ticks: { ...tick, stepSize: 1, precision: 0 }, grid }, y: { ticks: tick, grid: { display: false } } } }) });
+  const wks = gameWeeks(m.s).filter(w => m.reg.some(g => g.key === w.idx));
+  mk('c-trend', { type: 'line', data: { labels: wks.map(w => w.label), datasets: m.teams.map((t, i) => ({ label: t.name, data: wks.map(w => { const g = m.reg.find(g => g.key === w.idx && (g.a.id === t.id || g.b.id === t.id)); return g ? (g.a.id === t.id ? g.a.total : g.b.total) : null; }), borderColor: COLORS[i % 12], backgroundColor: 'transparent', tension: 0.3, spanGaps: false, pointRadius: 4 })) }, options: base({ plugins: { legend: { labels: { color: '#fff', boxWidth: 12, font: { size: 11 } } } } }) });
+}
+
+/* ============================== PLAYOFFS TAB ============================== */
+function renderPlayoffs(m) {
+  const b = bracket(m), s = m.s;
+  const simple = s.format === 'simple';
+  const seedRows = b.seeds.map((r, i) => `<tr class="${i === 6 && !simple ? 'seed-line' : ''}"><td><span class="rank-num">${r.seed}</span></td><td class="team-name-cell">${esc(m.name(r.id))}</td><td class="num">${r.w}-${r.l}${r.t ? '-' + r.t : ''}</td><td class="num accent">${r.g ? fmt(r.ppg, 1) : '—'}</td>${simple ? '' : `<td class="sub">${r.seed >= 8 ? 'Play-In' : r.seed === 1 ? 'Wild Card (hosts Play-In)' : 'Wild Card'}</td>`}</tr>`).join('');
+  const box = (pair, g) => {
+    if (g) {
+      const o = outcome(g), [x, y] = pair[0] && g.b.id === pair[0] ? [g.b, g.a] : [g.a, g.b];
+      const line = t => `<div class="bracket-team ${o && o.w === t.id ? 'winner' : ''}"><span><span class="seed">${b.seedOf(t.id) ? `(${b.seedOf(t.id)})` : ''}</span>${esc(m.name(t.id))}</span><span>${fmtScore(t.total)}</span></div>`;
+      return `<div class="bracket-slot">${line(x)}${line(y)}</div>`;
+    }
+    const line = id => `<div class="bracket-team"><span><span class="seed">${id && b.seedOf(id) ? `(${b.seedOf(id)})` : ''}</span>${id ? esc(m.name(id)) : 'TBD'}</span></div>`;
+    return `<div class="bracket-slot pending">${line(pair[0])}${line(pair[1])}</div>`;
+  };
+  const cols = s.playoffs.map(r => { const R = b.rounds[r.key]; return `<div class="bracket-col"><div class="bracket-col-title">${esc(r.label)}</div><div class="bracket-col-date">${esc(r.date)}</div><div class="bracket-col-body">${R.pairs.map((p, k) => box(p, R.games[k])).join('')}</div></div>`; }).join('');
+  const hosts = s.playoffs.map(r => `<div class="note">${esc(r.label)} (${esc(r.date)}): <strong>${b.hosts[r.key] ? esc(m.name(b.hosts[r.key])) : 'TBD'}</strong> — ${HOST_RULE[r.key]}</div>`).join('');
+  return (b.final ? '' : `<div class="note">📈 <strong>Projected</strong> — seeding locks once all ${m.scheduledGames} regular-season games are in (${m.reg.length} so far). This is the bracket if the season ended today.</div>`)
+    + (b.champion ? `<div class="champion-banner">🏆 ${esc(m.name(b.champion))} — ${esc(s.label)} Champions</div>` : '')
+    + `<div class="section-title">${simple ? 'Final Standings' : 'Playoff Seeding'}${b.final ? '' : ' (projected)'}</div>
+    <div class="seed-wrap tbl-wrap"><table class="tbl"><thead><tr><th>Seed</th><th>Team</th><th class="r">W-L</th><th class="r">PPG</th>${simple ? '' : '<th>Starts in</th>'}</tr></thead><tbody>${seedRows}</tbody></table></div>
+    <div class="section-title">Bracket</div><div class="bracket-wrap">${cols}</div>
+    ${simple ? (s.notes ? `<div class="note">${esc(s.notes)}</div>` : '') : `<div class="section-title">Hosting</div>${hosts}
+    <p class="sub">Semifinals reseed: best remaining seed plays the worst remaining seed; the middle two play each other.</p>`}`;
+}
+
+/* ============================== UPLOADS ============================== */
+const pendingQueue = [];
+function listFor(st, target) {
+  const [kind, key] = target.split(':');
+  if (kind === 'w') return (st.weeks[key] = st.weeks[key] || []);
+  return (st.playoffs[key] = st.playoffs[key] || []);
+}
+async function handleFiles(files, target) {
+  const s = cur(), st = seasonStore(s);
+  const items = await Promise.all([...files].map(f => f.text().then(t => ({ file: f.name, text: t.replace(/^﻿/, '').replace(/\r/g, '').trim() }))));
+  let added = 0, dup = 0; const bad = [], warns = [];
+  for (const it of items) {
+    const list = listFor(st, target);
+    const allTexts = [...Object.values(st.weeks).flat(), ...Object.values(st.playoffs).flat()];
+    if (allTexts.includes(it.text)) { dup++; continue; }
+    const blocks = parseCSV(it.text);
+    if (!blocks) { bad.push(it.file); continue; }
+    const ids = resolveBlocks(teamsFor(s), blocks, st.assign[hash(it.text)]);
+    if (ids[0] && ids[1]) { list.push(it.text); added++; const w = checkGame(s, target, ids); if (w) warns.push(w); }
+    else pendingQueue.push({ ...it, blocks, ids, target });
+  }
+  saveStore(); invalidate(s.id); render();
+  const parts = [];
+  if (added) parts.push(`${added} game${added > 1 ? 's' : ''} added`);
+  if (dup) parts.push(`${dup} duplicate${dup > 1 ? 's' : ''} skipped`);
+  if (bad.length) parts.push(`couldn't read ${bad.join(', ')}`);
+  if (warns.length) parts.push(warns.join(' '));
+  if (parts.length) toast(parts.join(' · '), bad.length || warns.length);
+  nextPending();
+}
+function checkGame(s, target, ids) {
+  const [kind, key] = target.split(':');
+  if (kind !== 'w') return null;
+  const w = s.schedule[+key], m = model(s);
+  const on = w.matches.some(([a, b]) => (a === ids[0] && b === ids[1]) || (a === ids[1] && b === ids[0]));
+  return on ? null : `${m.name(ids[0])} vs ${m.name(ids[1])} isn't on the ${w.label} schedule — loaded anyway, double-check the week.`;
+}
+function nextPending() {
+  if (!pendingQueue.length) return;
+  const p = pendingQueue[0], s = cur(), teams = teamsFor(s);
+  const opts = sel => `<option value="">— Pick a team —</option>` + teams.map(t => `<option value="${t.id}" ${sel === t.id ? 'selected' : ''}>${esc(t.name)} (${esc(t.captain)})</option>`).join('');
+  openModal(`<h3>Which teams played?</h3><p>Couldn't confidently match <strong>${esc(p.file)}</strong>. Pick the team for each side — new team names get remembered so this file type won't ask again.</p>
+    ${p.blocks.map((b, i) => `<div class="blockbox"><div class="raw">"${esc(b.rawName)}" — ${fmtScore(b.total)} pts</div><div class="pl">${b.players.length ? b.players.map(x => esc(x.name)).join(', ') : 'No player rows'}</div>
+      <label class="fl" for="as-${i}">Team</label><select id="as-${i}">${opts(p.ids[i])}</select></div>`).join('')}
+    <div class="actions"><button class="btn ghost" data-act="skip-pending">Skip file</button><button class="btn primary" data-act="save-pending">Save game</button></div>`, 'pending');
+}
+function savePending() {
+  const p = pendingQueue[0], s = cur(), st = seasonStore(s), teams = teamsFor(s);
+  const a = document.getElementById('as-0').value, b = document.getElementById('as-1').value;
+  if (!a || !b) { toast('Pick a team for both sides', true); return; }
+  if (a === b) { toast('Both sides can\'t be the same team', true); return; }
+  st.assign[hash(p.text)] = { 0: a, 1: b };
+  [a, b].forEach((id, i) => {
+    if (p.ids[i] === id) return;
+    const raw = p.blocks[i].rawName, k = norm(raw);
+    if (k && !teams.some(t => t.nameKeys.has(k))) (st.aliases[id] = st.aliases[id] || []).push(raw);
+  });
+  listFor(st, p.target).push(p.text);
+  const w = checkGame(s, p.target, [a, b]);
+  pendingQueue.shift(); saveStore(); invalidate(s.id); closeModal(true); render();
+  toast('Game added' + (w ? ' · ' + w : ''), !!w);
+  nextPending();
+}
+
+/* ============================== DATA ============================== */
+function doBackup() {
+  const blob = new Blob([JSON.stringify({ app: 'sae-trivia-dashboard', version: 5, exported: new Date().toISOString(), store }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sae_trivia_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Backup downloaded');
+}
+async function doRestore(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data || data.app !== 'sae-trivia-dashboard' || typeof data.store !== 'object') throw new Error('bad');
+    if (!confirm('Replace everything saved in this browser with this backup?')) return;
+    store = data.store; saveStore(); invalidate(); ui.week = null; render();
+    toast('Backup restored');
+  } catch (e) { toast('That file isn\'t a dashboard backup', true); }
+}
+function doClear() {
+  const s = cur();
+  if (!confirm(`Clear all ${s.label} scores from this browser? Team names are kept.`)) return;
+  const st = seasonStore(s); st.weeks = {}; st.playoffs = {}; st.assign = {};
+  saveStore(); invalidate(s.id); ui.week = null; render(); toast('Scores cleared');
+}
+function removeGame(h, phase, key) {
+  const s = cur(), st = seasonStore(s);
+  if (!confirm('Remove this game? You can re-upload the CSV any time.')) return;
+  const list = phase === 'reg' ? st.weeks[key] : st.playoffs[key];
+  const i = (list || []).findIndex(t => hash(t.trim()) === h);
+  if (i >= 0) list.splice(i, 1);
+  delete st.assign[h];
+  saveStore(); invalidate(s.id); render(); toast('Game removed');
+}
+
+/* ============================== THE RAFTERS ============================== */
+const NUM_WORDS = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE'];
+const ROUND_PHRASE = { playin: 'play-in round', wildcard: 'wild card round', semis: 'semifinal round', championship: 'championship' };
+const pts = n => { const s = fmtScore(n); return s.startsWith('0.') ? s.slice(1) : s; };
+const nick = n => RAFTERS_NICKNAMES[n] || n.split(' ')[0];
+const joinNames = a => a.length > 2 ? a.slice(0, -1).join(', ') + ' & ' + a[a.length - 1] : a.join(' & ');
+const whenLabel = (s, phase, key) => phase === 'reg' ? s.schedule[key].label.toLowerCase() : ROUND_PHRASE[key];
+
+// Builds the season awards post. Returns { lines: [{label, value, note}], header, final }.
+function rafterAwards(s) {
+  const m = model(s), b = bracket(m), st = standings(m), ov = s.rafterOverrides || {};
+  const rosterNames = new Set(s.teams.flatMap(t => t.players.map(norm)));
+  const recs = performances(s);
+  const isSub = r => !m.byId[r.team] || !m.byId[r.team].playerSet.has(norm(r.name));
+  const out = [];
+  const add = (label, value, note) => { if (value) out.push({ label, value, note }); };
+
+  // Champions
+  if (b.champion) { const t = m.byId[b.champion]; add('Champions', `${t.name} (${t.players.map(nick).join(', ')})`); }
+  else add('Champions', 'TBD', 'Decided Championship week');
+
+  // MVP / Ass of the Year — regular season PPG, roster players with at least half the max games played
+  const reg = aggregate(recs.filter(r => r.phase === 'reg')).filter(p => rosterNames.has(p.key));
+  const maxGp = Math.max(0, ...reg.map(p => p.gp));
+  const elig = reg.filter(p => p.gp >= Math.ceil(maxGp / 2));
+  const extreme = (list, field, dir) => { if (!list.length) return null; const v = dir > 0 ? Math.max(...list.map(p => p[field])) : Math.min(...list.map(p => p[field])); const r2 = x => Math.round(x * 100); return { v, names: list.filter(p => r2(p[field]) === r2(v)).map(p => p.name).sort() }; };
+  const mvp = extreme(elig, 'ppg', 1), aoty = extreme(elig, 'ppg', -1);
+  if (mvp) add('MVP', `${joinNames(mvp.names)} (${fmt(mvp.v)} PPG)`, `Highest regular-season PPG (min ${Math.ceil(maxGp / 2)} games)`);
+  if (aoty) add('Ass of the Year', `${joinNames(aoty.names)} (${fmt(aoty.v)} PPG)`, `Lowest regular-season PPG (min ${Math.ceil(maxGp / 2)} games)`);
+
+  // Playoff MVP — highest playoff PPG, min 2 playoff games (or the max anyone played, if lower)
+  const po = aggregate(recs.filter(r => r.phase === 'po' && !isSub(r)));
+  if (po.length) {
+    const minPo = Math.min(2, Math.max(...po.map(p => p.gp)));
+    const pm = extreme(po.filter(p => p.gp >= minPo), 'ppg', 1);
+    if (pm) add('Playoff MVP', `${joinNames(pm.names)} (${fmt(pm.v)} PPG)`, `Highest playoff PPG (min ${minPo} games)`);
+  }
+
+  // Commissioner's Cup — best regular season (the 1 seed)
+  if (m.reg.length) { const c = st[0]; add("Commissioner's Cup", `${m.name(c.id)} (${c.w}-${c.l}${c.t ? '-' + c.t : ''}, ${fmtScore(c.pf)} PF)`, b.final ? 'Best regular season (1 seed)' : 'Current 1 seed'); }
+
+  // Lights Were Too Bright — lowest single playoff score
+  const poRecs = recs.filter(r => r.phase === 'po' && !isSub(r));
+  if (ov.lightsTooBright) { add('"The Lights Were Too Bright" Award', ov.lightsTooBright, 'From the original post'); out[out.length - 1].suffix = ' for worst playoff performance'; }
+  else if (poRecs.length) {
+    const lo = Math.min(...poRecs.map(r => r.score)), who = poRecs.filter(r => r.score === lo);
+    add('"The Lights Were Too Bright" Award', `${joinNames([...new Set(who.map(r => r.name))])} (${pts(lo)} pts, ${whenLabel(s, 'po', who[0].key)})`, 'Worst single playoff game', 'for worst playoff performance');
+    out[out.length - 1].suffix = ' for worst playoff performance';
+  }
+
+  // Single game highs
+  const sides = [...m.reg, ...Object.values(m.po).flat()].flatMap(g => [g.a, g.b].map(x => ({ ...x, phase: g.phase, key: g.key })));
+  if (sides.length) {
+    const hi = Math.max(...sides.map(x => x.total)), w = sides.filter(x => x.total === hi);
+    add('Single game high (team)', `${joinNames([...new Set(w.map(x => m.name(x.id)))])} (${pts(hi)} points, ${whenLabel(s, w[0].phase, w[0].key)})`);
+  }
+  const allRecs = recs.filter(r => !isSub(r));
+  if (allRecs.length) {
+    const hi = Math.max(...allRecs.map(r => r.score)), w = allRecs.filter(r => r.score === hi);
+    add('Single game high (player)', `${joinNames([...new Set(w.map(r => r.name))])} (${pts(hi)} points, ${whenLabel(s, w[0].phase, w[0].key)})`);
+  }
+  return { header: `SAETL SEASON ${NUM_WORDS[s.num] || s.num}: ${s.postDates || s.dates}`, lines: out, final: !!b.champion };
+}
+function rafterText(s) {
+  if (s.rafterPost) return s.rafterPost;
+  const r = rafterAwards(s);
+  return `__**${r.header}**__\n` + r.lines.map(l => `**${l.label}**${l.suffix || ''}: ${l.value}`).join('\n\n');
+}
+// Minimal Discord-markdown preview: __**x**__ = bold underline, **x** = bold.
+function discordHtml(text) {
+  return esc(text).replace(/__\*\*(.+?)\*\*__/g, '<u><b>$1</b></u>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+}
+function postCard(id, title, sub, text, notes) {
+  return `<div class="rafter-card">
+    <div class="rafter-head"><div><div class="nm">${esc(title)}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>
+      <div class="rafter-btns"><button class="btn ghost" data-act="tweak-post" data-v="${id}">✏️ Tweak</button><button class="btn primary" data-act="copy-post" data-v="${id}">📋 Copy for Discord</button></div></div>
+    <div class="discord"><div class="discord-name">Commish</div><div class="discord-body">${discordHtml(text)}</div></div>
+    <textarea id="ta-${id}" class="rafter-ta" style="display:none" spellcheck="false">${esc(text)}</textarea>
+    ${notes ? `<div class="rafter-notes">${notes}</div>` : ''}
+  </div>`;
+}
+function renderRafters(m) {
+  const s = m.s, r = rafterAwards(s);
+  const notes = s.rafterPost ? '' : r.lines.filter(l => l.note).map(l => `<span><b>${esc(l.label.replace(/"/g, ''))}</b> — ${esc(l.note)}</span>`).join('');
+  const others = SEASONS.filter(x => x.id !== s.id).map(x => postCard(x.id, x.label, x.rafterPost ? 'Original post' : x.editable ? 'In progress' : 'Final', rafterText(x))).join('');
+  return `<div class="note">🏛️ Your season awards post, built straight from the data and formatted for Discord. Hit <strong>Copy for Discord</strong> and paste it into #the-rafters. Use <strong>Tweak</strong> to edit the text before copying (edits aren't saved).${r.final ? '' : ' <strong>The season is still in progress</strong>, so this shows the race so far.'}</div>`
+    + postCard(s.id, s.label, s.rafterPost ? 'Original post' : r.final ? 'Final' : 'Race so far — updates as games come in', rafterText(s), notes)
+    + (others ? `<div class="section-title" style="margin-top:32px">From the Rafters</div>${others}` : '');
+}
+async function copyPost(id) {
+  const ta = document.getElementById('ta-' + id);
+  const text = ta.value;
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const wasHidden = ta.style.display === 'none';
+    ta.style.display = 'block'; ta.select(); document.execCommand('copy');
+    if (wasHidden) ta.style.display = 'none';
+  }
+  toast('Copied — paste it into Discord');
+}
+
+/* ============================== EVENTS ============================== */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) { if (e.target.id === 'modal-bg') closeModal(); return; }
+  const v = el.dataset.v;
+  switch (el.dataset.act) {
+    case 'tab': ui.tab = v; render(); break;
+    case 'week': ui.week = v; render(); break;
+    case 'view': ui.statView = v; ui.sort = { key: 'ppg', dir: -1 }; render(); break;
+    case 'sort': ui.sort = ui.sort.key === v ? { key: v, dir: -ui.sort.dir } : { key: v, dir: (v === 'name' || v === 'team') ? 1 : -1 }; render(); break;
+    case 'seasons': ui.screen = 'seasons'; render(); window.scrollTo(0, 0); break;
+    case 'open-season': ui.screen = 'dash'; if (ui.season !== v) { ui.season = v; ui.week = null; } render(); window.scrollTo(0, 0); break;
+    case 'rename': openRename(v); break;
+    case 'rename-save': saveRename(v); break;
+    case 'close': closeModal(); break;
+    case 'save-pending': savePending(); break;
+    case 'skip-pending': pendingQueue.shift(); closeModal(true); toast('File skipped'); nextPending(); break;
+    case 'remove': removeGame(el.dataset.h, el.dataset.phase, el.dataset.key); break;
+    case 'backup': doBackup(); break;
+    case 'restore': document.getElementById('restore-input').click(); break;
+    case 'clear': doClear(); break;
+    case 'copy-post': copyPost(v); break;
+    case 'tweak-post': { const ta = document.getElementById('ta-' + v); ta.style.display = ta.style.display === 'none' ? 'block' : 'none'; break; }
+  }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.up && t.files.length) { handleFiles(t.files, t.dataset.up); }
+  if (t.dataset && t.dataset.actChange === 'mingp') { ui.minGp = +t.value; render(); }
+  if (t.id === 'restore-input' && t.files.length) { doRestore(t.files[0]); t.value = ''; }
+});
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('modal-bg').classList.contains('show')) return;
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'rn-input') document.querySelector('[data-act="rename-save"]').click();
+});
+
+render();
+</script>
+</body>
+</html>
